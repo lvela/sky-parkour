@@ -192,11 +192,106 @@ function checker() {
   return toTex(c);
 }
 
+
+function sandTop() {
+  const [c, g] = canvas(512); const r = rng(71);
+  g.fillStyle = '#c96f3b'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 1400, ['#b85f30', '#d8834b', '#a9542a', '#e39a5f', '#c4703f'], 2, 14, 0.4);
+  blobs(g, 512, 512, r, 90, ['#6e8a3a', '#7f9b44', '#5d7a30'], 3, 9, 0.7); // scrub
+  return toTex(c);
+}
+
+function sandstone() {
+  const [c, g] = canvas(512); const r = rng(72);
+  for (let y = 0; y < 512; y += 4) {
+    const t = Math.sin(y * 0.05) * 0.5 + Math.sin(y * 0.013 + 1) * 0.5;
+    g.fillStyle = `rgb(${190 + t * 25 | 0},${100 + t * 18 | 0},${60 + t * 10 | 0})`;
+    g.fillRect(0, y, 512, 4);
+  }
+  blobs(g, 512, 512, r, 900, ['#9e4f2a', '#d98a55', '#8a4423', '#e8a46c'], 2, 10, 0.3);
+  g.fillStyle = '#4c7d2c'; g.fillRect(0, 0, 512, 0); // no grass lip
+  g.strokeStyle = 'rgba(80,35,15,0.35)'; g.lineWidth = 2;
+  for (let i = 0; i < 12; i++) { const y = r() * 512; g.beginPath(); g.moveTo(0, y); g.lineTo(512, y + (r() - 0.5) * 10); g.stroke(); }
+  return toTex(c);
+}
+
+function slide() {
+  const [c, g] = canvas(256);
+  g.fillStyle = '#1e7fe0'; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = '#ffffff';
+  for (let x = 0; x < 256; x += 64) g.fillRect(x + 24, 0, 16, 256);
+  g.fillStyle = 'rgba(255,255,255,0.25)';
+  for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, 6);
+  return toTex(c);
+}
+
+function brick() {
+  const [c, g] = canvas(512); const r = rng(81);
+  g.fillStyle = '#5d5a55'; g.fillRect(0, 0, 512, 512);
+  const bh = 42, bw = 96;
+  for (let row = 0; row * bh < 512; row++) {
+    const off = (row % 2) * bw / 2;
+    for (let x = -bw; x < 512 + bw; x += bw) {
+      const v = 120 + (r() * 40 | 0);
+      g.fillStyle = `rgb(${v},${v - 6},${v - 14})`;
+      g.fillRect(x + off + 3, row * bh + 3, bw - 6, bh - 6);
+      g.globalAlpha = 0.25; g.fillStyle = r() > 0.5 ? '#3a4a2a' : '#000';
+      if (r() > 0.75) g.fillRect(x + off + 3, row * bh + bh - 12, bw - 6, 9);
+      g.globalAlpha = 1;
+    }
+  }
+  blobs(g, 512, 512, r, 700, ['#3d3a36', '#8c8780', '#6b6a62'], 1, 5, 0.3);
+  return toTex(c);
+}
+
+function slate() {
+  const [c, g] = canvas(512); const r = rng(91);
+  g.fillStyle = '#3b4148'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 1500, ['#2f343a', '#4a525a', '#262a2f', '#56606a'], 2, 14, 0.4);
+  g.strokeStyle = 'rgba(15,18,22,0.8)'; g.lineWidth = 3;
+  for (let i = 0; i <= 512; i += 128) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(512, i); g.stroke(); }
+  return toTex(c);
+}
+
+function darkGrass() {
+  const [c, g] = canvas(512); const r = rng(92);
+  g.fillStyle = '#1d3a2a'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 1200, ['#173123', '#24493a', '#123020', '#2c5546'], 3, 16, 0.4);
+  blobs(g, 512, 512, r, 140, ['#7ff7ff', '#c08cff', '#8cffb0'], 1, 2.2, 0.9); // glowing flecks
+  return toTex(c);
+}
+
+function wallrun() {
+  const [c, g] = canvas(512); const r = rng(93);
+  g.fillStyle = '#2b62d9'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 700, ['#2456c4', '#3a74ea', '#1f4cb0'], 3, 14, 0.35);
+  g.strokeStyle = 'rgba(200,235,255,0.6)'; g.lineWidth = 14; g.lineJoin = 'round';
+  for (let x = 60; x < 512; x += 128) { g.beginPath(); g.moveTo(x + 40, 196); g.lineTo(x - 30, 256); g.lineTo(x + 40, 316); g.stroke(); }
+  g.fillStyle = 'rgba(10,20,60,0.6)'; g.fillRect(0, 0, 512, 6); g.fillRect(0, 506, 512, 6);
+  return toTex(c);
+}
+
+function climb() {
+  const [c, g] = canvas(512); const r = rng(94);
+  g.fillStyle = '#7b7166'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 2200, ['#6a6157', '#8d8378', '#5a524a', '#9b9185', '#73695e'], 3, 22, 0.35);
+  g.strokeStyle = 'rgba(40,34,28,0.6)'; g.lineCap = 'round';
+  for (let i = 0; i < 40; i++) {
+    let x = r() * 512, y = r() * 512, a = r() * 6.28; g.lineWidth = 1 + r() * 2.5;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 6; k++) { a += (r() - 0.5); x += Math.cos(a) * 18; y += Math.sin(a) * 18; g.lineTo(x, y); }
+    g.stroke();
+  }
+  return toTex(c);
+}
+
 export function makeTextures() {
   return {
     grass: grass(), dirt: dirt(), stone: stone(), wood: wood(), crumble: crumble(),
     wall: wall(), trampTop: trampTop('#2f7de1', '#ffcf3a'), megaTop: trampTop('#e2362f', '#ffe14a'),
     stripes: stripes(), metal: metal(), checker: checker(),
+    sandTop: sandTop(), sandstone: sandstone(), slide: slide(), brick: brick(), slate: slate(),
+    darkGrass: darkGrass(), wallrun: wallrun(), climb: climb(),
   };
 }
 

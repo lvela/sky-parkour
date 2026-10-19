@@ -26,17 +26,30 @@ function fbm3(x, y, z, s, oct = 4) {
 }
 
 // ---------- floating rocks ----------
-const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 });
 
 // Flat-topped, stalactite-like rock. Top surface sits at y≈0 (dome rises at most 0.08·min(rx,rz)).
-export function makeRock(rx, rz, depth, seed = 1, grassTop = false) {
+export const ROCK_PALETTES = {
+  day: { soil: 0x5a4330, rockA: 0x7d7368, rockB: 0x9a9286, dark: 0x4a443e, grassA: 0x4f8a2c, grassB: 0x6aa63a },
+  canyon: { soil: 0x8a3f1e, rockA: 0xb8603a, rockB: 0xd48a55, dark: 0x6e2e18, grassA: 0xc96f3b, grassB: 0x8a9a44 },
+  storm: { soil: 0x2e2a28, rockA: 0x4a4d52, rockB: 0x5f646b, dark: 0x22252a, grassA: 0x2f4a2c, grassB: 0x3d5a35 },
+  night: { soil: 0x1e1a24, rockA: 0x2f3040, rockB: 0x41435a, dark: 0x15151f, grassA: 0x1d3a2a, grassB: 0x2c5546 },
+  castle: { soil: 0x3d2f2a, rockA: 0x5e5660, rockB: 0x766d78, dark: 0x2c2630, grassA: 0x3f6a36, grassB: 0x55803f },
+};
+const rockMats = new Map();
+function rockMat(key) {
+  if (!rockMats.has(key)) rockMats.set(key, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 }));
+  return rockMats.get(key);
+}
+
+export function makeRock(rx, rz, depth, seed = 1, grassTop = false, palette = ROCK_PALETTES.day) {
   const geo = new THREE.IcosahedronGeometry(1, 3);
   const pos = geo.attributes.position;
   const col = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
   const topH = 0.08 * Math.min(rx, rz);
-  const soil = new THREE.Color(0x5a4330), rockA = new THREE.Color(0x7d7368), rockB = new THREE.Color(0x9a9286), dark = new THREE.Color(0x4a443e);
-  const grassA = new THREE.Color(0x4f8a2c), grassB = new THREE.Color(0x6aa63a);
+  const P = palette;
+  const soil = new THREE.Color(P.soil), rockA = new THREE.Color(P.rockA), rockB = new THREE.Color(P.rockB), dark = new THREE.Color(P.dark);
+  const grassA = new THREE.Color(P.grassA), grassB = new THREE.Color(P.grassB);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     const n = fbm3(x * 2.2 + 5, y * 2.2, z * 2.2, seed);
@@ -58,29 +71,38 @@ export function makeRock(rx, rz, depth, seed = 1, grassTop = false) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  const m = new THREE.Mesh(geo, rockMat);
+  const m = new THREE.Mesh(geo, rockMat('rock'));
   m.receiveShadow = true;
   return m;
 }
 
-export function createIslands(scene) {
-  const r = rng(777);
+// theme: { palette, trees: bool, leaf: hsl hue, crystals: bool, mesas: bool, count }
+export function createIslands(scene, theme = {}) {
+  const r = rng(theme.seed ?? 777);
+  const palette = theme.palette || ROCK_PALETTES.day;
+  const crystals = [];
   const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, 2, 6); trunkGeo.translate(0, 1, 0);
   const leafGeo = new THREE.ConeGeometry(1.6, 4.5, 7); leafGeo.translate(0, 4, 0);
   const trees = [];
   const islands = [];
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < (theme.count ?? 22); i++) {
     const side = r() > 0.5 ? 1 : -1;
     const x = side * (110 + r() * 700);
     const z = 300 - r() * 1200;
     const y = -70 + r() * 120;
     const R = 10 + r() * 40;
-    const rock = makeRock(R, R * (0.6 + r() * 0.4), R * (1.1 + r() * 1.2), 100 + i, true);
+    const mesa = theme.mesas && r() < 0.6;
+    const rock = makeRock(R, R * (0.6 + r() * 0.4), R * (mesa ? 3.5 + r() * 2 : 1.1 + r() * 1.2), 100 + i, true, palette);
+    if (mesa) rock.position.y -= 40;
     rock.position.set(x, y, z);
     rock.rotation.y = r() * 6.28;
     scene.add(rock);
     islands.push(rock);
-    const nTrees = Math.floor(R / 3);
+    if (theme.crystals) for (let k = 0; k < 3 + R / 8; k++) {
+      const a = r() * 6.28, rr = Math.sqrt(r()) * 0.55 * R;
+      crystals.push({ x: x + Math.cos(a) * rr, y: y + 0.03 * R, z: z + Math.sin(a) * rr * 0.6, s: 1 + r() * 3, rot: r() * 6.28, tilt: (r() - 0.5) * 0.6, hue: r() });
+    }
+    const nTrees = theme.trees === false ? 0 : Math.floor(R / 3);
     for (let k = 0; k < nTrees; k++) {
       const a = r() * 6.28, rr = Math.sqrt(r()) * 0.6;
       const lx = Math.cos(a) * rr * R, lz = Math.sin(a) * rr * R * 0.6;
@@ -91,7 +113,19 @@ export function createIslands(scene) {
     }
   }
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b3b22, roughness: 1 });
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f6b2a, roughness: 0.9, flatShading: true });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
+  if (crystals.length) {
+    const cg = new THREE.OctahedronGeometry(1, 0); cg.scale(0.5, 2.2, 0.5); cg.translate(0, 1.6, 0);
+    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    const im = new THREE.InstancedMesh(cg, cm, crystals.length);
+    const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), e = new THREE.Euler(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), cc = new THREE.Color();
+    crystals.forEach((c, i) => {
+      qq.setFromEuler(e.set(c.tilt, c.rot, c.tilt * 0.5));
+      im.setMatrixAt(i, mm.compose(pv.set(c.x, c.y, c.z), qq, sv.set(c.s, c.s, c.s)));
+      im.setColorAt(i, cc.setHSL(c.hue < 0.5 ? 0.5 : 0.8, 1.0, 0.6).multiplyScalar(1.6));
+    });
+    scene.add(im);
+  }
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, trees.length);
   const leaves = new THREE.InstancedMesh(leafGeo, leafMat, trees.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
@@ -100,9 +134,9 @@ export function createIslands(scene) {
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.rot);
     m.compose(p.set(t.x, t.y, t.z), q, sc.set(t.s, t.s, t.s));
     trunks.setMatrixAt(i, m); leaves.setMatrixAt(i, m);
-    leaves.setColorAt(i, tint.setHSL(0.27 + r() * 0.08, 0.5, 0.55 + r() * 0.25));
+    leaves.setColorAt(i, tint.setHSL((theme.leafHue ?? 0.3) + r() * 0.06, theme.leafSat ?? 0.55, (theme.leafLight ?? 0.25) + r() * 0.1));
   });
-  scene.add(trunks, leaves);
+  if (trees.length) scene.add(trunks, leaves);
   return islands;
 }
 
@@ -149,7 +183,7 @@ function tileNoise(size, period, seed, oct) {
   return out;
 }
 
-export function createCloudSea(scene, sky) {
+export function createCloudSea(scene, sky, opts = {}) {
   const size = 256;
   const a = tileNoise(size, 4, 1, 6), b = tileNoise(size, 8, 2, 5), c = tileNoise(size, 16, 3, 4);
   const data = new Uint8Array(size * size * 4);
@@ -165,7 +199,7 @@ export function createCloudSea(scene, sky) {
     uniforms: {
       noiseTex: { value: tex }, bgMap: { value: sky.background },
       sunDir: { value: sky.sunDir }, time: { value: 0 },
-      white: { value: sky.white }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
+      white: { value: sky.white }, tint: { value: sky.tint }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
     },
     vertexShader: /* glsl */`
       varying vec3 vWorld;
@@ -173,7 +207,7 @@ export function createCloudSea(scene, sky) {
     fragmentShader: /* glsl */`
       uniform sampler2D noiseTex; uniform samplerCube bgMap;
       uniform vec3 sunDir; uniform float time;
-      uniform vec3 white; uniform vec3 zenith; uniform vec3 sunCol; uniform vec3 avgHorizon;
+      uniform vec3 white; uniform vec3 tint; uniform vec3 zenith; uniform vec3 sunCol; uniform vec3 avgHorizon;
       varying vec3 vWorld;
       float field(vec2 uv) {
         float a = texture2D(noiseTex, uv * 0.0009 + vec2(time * 0.0012, 0.0)).r;
@@ -189,8 +223,8 @@ export function createCloudSea(scene, sky) {
         float dens = smoothstep(0.30, 0.62, n);
         float light = clamp(0.62 + (n - ns) * 4.0, 0.0, 1.0);
         float toSun = pow(max(dot(normalize(vec3(vd.x, 0.0, vd.z)), normalize(vec3(sunDir.x, 0.0, sunDir.z))), 0.0), 3.0);
-        vec3 lit = white * 1.2 + sunCol * (0.15 + 0.35 * toSun);
-        vec3 shade = mix(zenith, white, 0.45) * 0.55;
+        vec3 lit = white * 1.2 * tint + sunCol * (0.15 + 0.35 * toSun);
+        vec3 shade = mix(zenith, white, 0.45) * 0.55 * mix(tint, vec3(1.0), 0.5);
         vec3 col = mix(shade, lit, light);
         vec3 gap = mix(zenith, avgHorizon, 0.3) * 0.42;
         col = mix(gap, col, dens);
@@ -204,7 +238,7 @@ export function createCloudSea(scene, sky) {
   });
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(18000, 18000), mat);
   sea.rotation.x = -Math.PI / 2;
-  sea.position.set(0, -160, -200);
+  sea.position.set(0, opts.y ?? -160, -200);
   scene.add(sea);
   return mat;
 }
@@ -226,8 +260,9 @@ function puffTexture() {
   return t;
 }
 
-export function createCloudBillboards(scene, sky) {
-  const r = rng(4242);
+export function createCloudBillboards(scene, sky, opts = {}) {
+  const r = rng(opts.seed ?? 4242);
+  const nFar = opts.count ?? 70, seaY = opts.seaY ?? -160;
   const offsets = [], scales = [], shades = [], rots = [];
   const addCluster = (cx, cy, cz, S) => {
     const n = 7 + Math.floor(r() * 9);
@@ -241,11 +276,11 @@ export function createCloudBillboards(scene, sky) {
       rots.push(r() * 6.28);
     }
   };
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < nFar; i++) {
     const side = r() > 0.5 ? 1 : -1;
-    addCluster(side * (90 + r() * 2400), -130 + r() * 230, 1800 - r() * 4400, 35 + r() * 110);
+    addCluster(side * (90 + r() * 2400), seaY + 30 + r() * (opts.spread ?? 230), 1800 - r() * 4400, 35 + r() * 110);
   }
-  for (let i = 0; i < 22; i++) addCluster((r() - 0.5) * 300, -140 + r() * 70, 60 - r() * 520, 30 + r() * 50); // below the course
+  for (let i = 0; i < (opts.below ?? 22); i++) addCluster((r() - 0.5) * 300, seaY + 20 + r() * 70, 60 - r() * 520, 30 + r() * 50); // below the course
   const count = scales.length;
   const geo = new THREE.InstancedBufferGeometry();
   const base = new THREE.PlaneGeometry(1, 1);
@@ -258,7 +293,7 @@ export function createCloudBillboards(scene, sky) {
   geo.setAttribute('rot', new THREE.InstancedBufferAttribute(new Float32Array(rots), 1));
   geo.instanceCount = count;
 
-  const lit = sky.white.clone().multiplyScalar(1.3).add(sky.sunCol.clone().multiplyScalar(0.2));
+  const lit = sky.white.clone().multiply(sky.tint).multiplyScalar(1.3).add(sky.sunCol.clone().multiplyScalar(0.2));
   const shade = sky.zenith.clone().lerp(sky.white, 0.55).multiplyScalar(0.62);
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,

@@ -12,8 +12,9 @@ export class Hud {
       hud: document.getElementById('hud'), timer: document.getElementById('timer'), stats: document.getElementById('stats'),
       cross: document.getElementById('crosshair'), hint: document.getElementById('hint'),
       banner: document.getElementById('banner'), big: document.getElementById('bannerBig'), small: document.getElementById('bannerSmall'),
-      fade: document.getElementById('fade'),
+      fade: document.getElementById('fade'), bossWrap: document.getElementById('boss'), bossFill: document.getElementById('bossFill'),
     };
+    this.bossOn = false; this.bossFrac = 1;
     this.state = { time: '0:00.00', stats: '', hint: '', big: '', small: '', color: '#ffffff' };
     this.bannerT = 0; this.bannerSticky = false; this.xr = false; this.dirty = true; this.redrawT = 0;
 
@@ -31,6 +32,13 @@ export class Hud {
 
   setXR(on) { this.xr = on; this.panel.visible = on; this.dirty = true; this.el.cross.classList.toggle('hidden', on); }
   show(on) { this.el.hud.classList.toggle('hidden', !on); this.el.cross.classList.toggle('hidden', !on || this.xr); }
+
+  boss(on, frac = this.bossFrac) {
+    this.bossOn = on; this.bossFrac = frac;
+    this.el.bossWrap.classList.toggle('hidden', !on);
+    this.el.bossFill.style.width = `${Math.max(0, frac) * 100}%`;
+    this.dirty = true;
+  }
 
   set(key, val) { if (this.state[key] !== val) { this.state[key] = val; this.dirty = true; } }
 
@@ -69,13 +77,23 @@ export class Hud {
   drawPanel() {
     const g = this.ctx, s = this.state;
     g.clearRect(0, 0, 1024, 512);
+    const fit = (text, weight, size, y) => { // shrink long lines to fit the panel
+      g.font = `${weight} ${size}px system-ui, sans-serif`;
+      const w = g.measureText(text).width;
+      if (w > 980) g.font = `${weight} ${Math.floor(size * 980 / w)}px system-ui, sans-serif`;
+      g.fillText(text, 512, y);
+    };
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 12;
-    g.fillStyle = '#ffffff'; g.font = '800 34px system-ui, sans-serif';
-    g.fillText(`${s.time}   ${s.stats}`, 512, 40);
-    if (s.big) { g.fillStyle = s.color; g.font = '900 78px system-ui, sans-serif'; g.fillText(s.big, 512, 210); }
-    if (s.small) { g.fillStyle = '#ffffff'; g.font = '700 38px system-ui, sans-serif'; g.fillText(s.small, 512, 285); }
-    if (s.hint) { g.fillStyle = '#ffcf4a'; g.font = '800 32px system-ui, sans-serif'; g.fillText(s.hint, 512, 470); }
+    g.fillStyle = '#ffffff'; fit(`${s.time}   ${s.stats}`, 800, 34, 40);
+    if (s.big) { g.fillStyle = s.color; fit(s.big, 900, 78, 210); }
+    if (s.small) { g.fillStyle = '#ffffff'; fit(s.small, 700, 38, 285); }
+    if (this.bossOn) {
+      g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(262, 70, 500, 26);
+      g.fillStyle = '#ff2a5a'; g.fillRect(266, 74, 492 * Math.max(0, this.bossFrac), 18);
+      g.fillStyle = '#ffffff'; g.font = '800 22px system-ui, sans-serif'; g.fillText('THE SKY KING', 512, 112);
+    }
+    if (s.hint) { g.fillStyle = '#ffcf4a'; fit(s.hint, 800, 32, 470); }
     this.tex.needsUpdate = true;
   }
 }

@@ -1,25 +1,25 @@
 import * as THREE from 'three';
 import { bakeSky } from './sky.js';
-import { createCloudSea, createCloudBillboards, createIslands } from './scenery.js';
+import { createCloudSea, createCloudBillboards, createIslands, ROCK_PALETTES } from './scenery.js';
+import { createRain, createLightning, createAurora, createBirds, createFireworks } from './effects.js';
 import { makeTextures } from './textures.js';
-import { buildCourse } from './course.js';
+import { World } from './world.js';
+import { Builder } from './builder.js';
+import { LEVELS } from './levels/index.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
 import { XRControls } from './xr.js';
 import { Hud, fmtTime } from './hud.js';
 import { SFX } from './audio.js';
 
-const EXPOSURE = 0.5;
 const EYE = 1.62;
-const FADE_Y = -10;
-const SUN_ELEVATION = 21, SUN_AZIMUTH = -62;
+const STORE = 'skyparkour.v2';
 
-// ---------- renderer / scene ----------
+// ---------- renderer / persistent scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = EXPOSURE;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.xr.enabled = true;
@@ -33,127 +33,208 @@ const rig = new THREE.Group();
 rig.add(camera); scene.add(rig);
 camera.position.set(0, EYE, 0);
 
-const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - SUN_ELEVATION), THREE.MathUtils.degToRad(SUN_AZIMUTH));
-const sky = bakeSky(renderer, sunDir, EXPOSURE);
-scene.background = sky.background;
-scene.environment = sky.envMap;
-scene.environmentIntensity = 0.9;
-scene.fog = new THREE.FogExp2(sky.fogColor, 0.0009);
-
-const sun = new THREE.DirectionalLight(0xfff0dc, 3.2);
+const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 const sc = sun.shadow.camera;
 sc.left = -32; sc.right = 32; sc.top = 32; sc.bottom = -32; sc.near = 1; sc.far = 300;
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x000000, 0);
+const flashLight = new THREE.HemisphereLight(0xdde6ff, 0x404060, 0);
+scene.add(hemi, flashLight);
+const sunDir = new THREE.Vector3(0, 1, 0);
 
 const tex = makeTextures();
+const sharedTex = new Set(Object.values(tex));
 const sfx = new SFX();
-const world = buildCourse(scene, tex, sfx);
-const seaMat = createCloudSea(scene, sky);
-createCloudBillboards(scene, sky);
-createIslands(scene);
-
 const hud = new Hud(camera);
 const input = new Input(renderer.domElement);
 const xr = new XRControls(renderer, rig);
+let world = new World(sfx);
 const player = new Player(world, sfx);
 
-// ---------- confetti ----------
-const CONF = 500;
-const confGeo = new THREE.BufferGeometry();
-const confPos = new Float32Array(CONF * 3), confVel = new Float32Array(CONF * 3), confCol = new Float32Array(CONF * 3);
-const palette = [0xffcf4a, 0xff5a4a, 0x59d6ff, 0x3ddc5a, 0xffffff, 0xff7ad9].map((c) => new THREE.Color(c));
-for (let i = 0; i < CONF; i++) { const c = palette[i % palette.length]; confCol.set([c.r, c.g, c.b], i * 3); }
-confGeo.setAttribute('position', new THREE.BufferAttribute(confPos, 3));
-confGeo.setAttribute('color', new THREE.BufferAttribute(confCol, 3));
-const confetti = new THREE.Points(confGeo, new THREE.PointsMaterial({ size: 0.18, vertexColors: true, toneMapped: false }));
-confetti.visible = false; confetti.frustumCulled = false;
-scene.add(confetti);
-function burstConfetti() {
-  const c = world.finishPos;
-  for (let i = 0; i < CONF; i++) {
-    confPos.set([c.x + (Math.random() - 0.5) * 2, c.y + 4 + Math.random() * 2, c.z + (Math.random() - 0.5) * 2], i * 3);
-    const a = Math.random() * 6.28, s = 3 + Math.random() * 7;
-    confVel.set([Math.cos(a) * s, 6 + Math.random() * 10, Math.sin(a) * s], i * 3);
-  }
-  confetti.visible = true;
-}
-function updateConfetti(dt) {
-  if (!confetti.visible) return;
-  for (let i = 0; i < CONF; i++) {
-    confVel[i * 3 + 1] -= 9 * dt;
-    for (let k = 0; k < 3; k++) confVel[i * 3 + k] *= 1 - 1.2 * dt;
-    for (let k = 0; k < 3; k++) confPos[i * 3 + k] += confVel[i * 3 + k] * dt;
-  }
-  confGeo.attributes.position.needsUpdate = true;
-}
+// ---------- progress ----------
+let progress = { best: {}, done: {} };
+try { progress = { best: {}, done: {}, ...JSON.parse(localStorage.getItem(STORE) || '{}') }; } catch { /* private mode */ }
+function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify(progress)); } catch { /* ignore */ } }
 
 // ---------- game state ----------
 let state = 'menu'; // menu | play | dead | won
 let paused = false;
-let gameTime = 0, runTime = 0, deaths = 0, cpIndex = 0;
-let deadT = 0, fadeIn = 0;
+let gameTime = 0, runTime = 0, deaths = 0, cpIndex = 0, hearts = 3;
+let deadT = 0, fadeIn = 0, winT = 0, shake = 0, deathMsg = '';
 let viewYaw = 0, pitch = 0, rigYaw = 0;
 const headOff = new THREE.Vector3(), prevHeadOff = new THREE.Vector3();
 let xrFresh = true;
+let levelIndex = 0, L = null, levelGroup = null, sky = null, seaMat = null, fireworks = null;
 
+const isBoss = () => !!world.boss;
 function cpTotal() { return world.checkpoints.length - 1; }
-function updateStats() { hud.set('stats', `☠ ${deaths}   ⚑ ${cpIndex}/${cpTotal()}`); }
+function updateStats() {
+  let s = `☠ ${deaths}   ⚑ ${cpIndex}/${cpTotal()}`;
+  if (isBoss() && world.boss.state === 'fight') s += '   ' + '❤'.repeat(Math.max(0, hearts)) + '♡'.repeat(Math.max(0, 3 - hearts));
+  hud.set('stats', `${L ? L.name : ''}   ${s}`);
+}
+
+function disposeGroup(g) {
+  g.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of mats) for (const k of ['map', 'emissiveMap']) if (m[k] && !sharedTex.has(m[k])) m[k].dispose();
+  });
+}
+
+function loadLevel(i) {
+  if (levelGroup) { scene.remove(levelGroup); disposeGroup(levelGroup); }
+  if (sky) sky.dispose();
+  levelIndex = i; L = LEVELS[i];
+  renderer.toneMappingExposure = L.exposure;
+  sky = bakeSky(renderer, L.sky, L.exposure);
+  scene.background = sky.background;
+  scene.environment = sky.envMap;
+  scene.environmentIntensity = L.envIntensity;
+  scene.fog = new THREE.FogExp2(sky.fogColor, L.fog);
+  sun.color.set(L.light.color); sun.intensity = L.light.intensity;
+  sunDir.copy(sky.sunDir);
+  if (L.hemi) { hemi.color.set(L.hemi.sky); hemi.groundColor.set(L.hemi.ground); hemi.intensity = L.hemi.intensity; } else hemi.intensity = 0;
+  flashLight.intensity = 0;
+
+  levelGroup = new THREE.Group();
+  scene.add(levelGroup);
+  world = new World(sfx);
+  world.killY = L.killY;
+  const theme = { ...L.theme, palette: ROCK_PALETTES[L.theme.palette] };
+  const b = new Builder(levelGroup, world, tex, sfx, theme);
+  L.build(b);
+  const S = L.scenery;
+  seaMat = createCloudSea(levelGroup, sky, S.sea);
+  createCloudBillboards(levelGroup, sky, S.clouds);
+  createIslands(levelGroup, { ...S.islands, palette: ROCK_PALETTES[S.islands.palette] });
+  if (S.rain) world.anim.push(createRain(levelGroup, world));
+  if (S.lightning) world.anim.push(createLightning(levelGroup, sfx, flashLight));
+  if (S.aurora) world.anim.push(createAurora(levelGroup));
+  if (S.birds) world.anim.push(createBirds(levelGroup, new THREE.Vector3(0, 8, -150), 26, L.id === 'canyon' ? 0x2a1a14 : 0x222222));
+  fireworks = createFireworks(levelGroup, sfx);
+  world.anim.push(fireworks.update);
+  world.player = player;
+  player.world = world;
+  restartRun(false);
+  renderer.compile(scene, camera);
+}
 
 function respawn() {
   const cp = world.checkpoints[cpIndex];
   player.reset(cp.pos);
-  viewYaw = cp.yaw; pitch = 0;
-  rigYaw = cp.yaw;
+  viewYaw = cp.yaw; pitch = 0; rigYaw = cp.yaw;
   xrFresh = true;
   world.resetCrumbles();
-}
-
-function restartRun() {
-  cpIndex = 0; deaths = 0; runTime = 0;
-  for (const cp of world.checkpoints) cp.deactivate();
-  confetti.visible = false;
-  hud.clearBanner();
-  respawn();
-  state = 'play';
+  hearts = 3;
+  if (world.boss) world.boss.reset();
   updateStats();
 }
 
-respawn();
-updateStats();
+function restartRun(play = true) {
+  cpIndex = 0; deaths = 0; runTime = 0; winT = 0;
+  for (const cp of world.checkpoints) cp.deactivate();
+  hud.clearBanner();
+  hud.boss(false);
+  respawn();
+  if (play) state = 'play';
+  updateStats();
+}
 
-// ---------- menu / sessions ----------
+function nextLevel() {
+  const n = (levelIndex + 1) % LEVELS.length;
+  selected = n;
+  withLoading(() => { loadLevel(n); state = 'play'; hud.banner(LEVELS[n].name.toUpperCase(), LEVELS[n].tagline, '#ffcf4a', 3); renderMenu(); });
+}
+
+player.onKnock = () => {
+  if (!isBoss() || world.boss.state !== 'fight' || state !== 'play') return;
+  hearts--; updateStats();
+  if (renderer.xr.isPresenting) { xr.pulse(0, 1, 120); xr.pulse(1, 1, 120); }
+  if (hearts <= 0) die('KNOCKED OUT!', 'The Sky King wins this round… try again!');
+};
+
+function die(big, small) {
+  state = 'dead'; deadT = 0; deaths++;
+  deathMsg = big;
+  sfx.death();
+  hud.banner(big, small, '#ff4a3a', 0);
+  updateStats();
+}
+
+function win() {
+  state = 'won';
+  sfx.win();
+  fireworks.burst(world.finishPos.clone(), 8, 30);
+  const prev = progress.best[L.id];
+  const record = !prev || runTime < prev;
+  if (record) progress.best[L.id] = runTime;
+  progress.done[L.id] = true;
+  saveProgress();
+  renderMenu();
+  const last = levelIndex === LEVELS.length - 1;
+  const xrMode = renderer.xr.isPresenting;
+  const nextTxt = last ? (xrMode ? 'A: back to level 1' : 'ENTER: back to level 1') : (xrMode ? 'A: next level' : 'ENTER: next level');
+  const title = isBoss() ? 'YOU DEFEATED THE SKY KING!' : 'LEVEL COMPLETE!';
+  hud.banner(title, `${fmtTime(runTime)}${record ? ' · NEW BEST' : ''} · ☠ ${deaths} · ${nextTxt} · ${xrMode ? 'B' : 'R'}: replay`, '#ffcf4a', 0);
+}
+
+// ---------- menu ----------
 const ui = {
   loading: document.getElementById('loading'), menu: document.getElementById('menu'),
   play: document.getElementById('playBtn'), vr: document.getElementById('vrBtn'), restart: document.getElementById('restartBtn'),
-  sub: document.getElementById('menuSub'), vrnote: document.getElementById('vrnote'),
+  sub: document.getElementById('menuSub'), vrnote: document.getElementById('vrnote'), levels: document.getElementById('levels'),
 };
-ui.loading.classList.add('hidden');
-ui.menu.classList.remove('hidden');
+let selected = 0;
 
-function showMenu(pausedText) {
-  ui.menu.classList.remove('hidden');
-  if (pausedText) { ui.sub.textContent = pausedText; ui.play.textContent = 'RESUME'; ui.restart.classList.remove('hidden'); }
-  hud.show(false);
+function withLoading(fn) {
+  ui.loading.textContent = 'Painting the sky…';
+  ui.loading.classList.remove('hidden');
+  setTimeout(() => { fn(); ui.loading.classList.add('hidden'); }, 30);
 }
+
+function renderMenu() {
+  ui.levels.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const card = document.createElement('button');
+    card.className = 'level' + (i === selected ? ' sel' : '') + (lv.boss ? ' boss' : '');
+    const best = progress.best[lv.id];
+    card.innerHTML = `<span class="num">${lv.boss ? 'BOSS · LEVEL ' + (i + 1) : 'LEVEL ' + (i + 1)}</span><span class="name">${lv.name}</span><span class="tag">${lv.tagline}</span><span class="best">${progress.done[lv.id] ? '✔ ' : ''}${best ? 'Best ' + fmtTime(best) : 'Not completed'}</span>`;
+    card.addEventListener('click', () => {
+      if (selected === i && levelIndex === i) return;
+      selected = i;
+      withLoading(() => { loadLevel(i); state = 'menu'; paused = false; renderMenu(); setMenuMode(); });
+    });
+    ui.levels.appendChild(card);
+  });
+}
+
+function setMenuMode() {
+  const inRun = state !== 'menu';
+  ui.sub.textContent = inRun ? `Paused — ${L.name}` : 'Thousands of feet up. Five worlds. One Sky King.';
+  ui.play.textContent = inRun ? 'RESUME' : 'PLAY';
+  ui.restart.classList.toggle('hidden', !inRun);
+}
+
+function showMenu() { ui.menu.classList.remove('hidden'); setMenuMode(); renderMenu(); hud.show(false); }
 function hideMenu() { ui.menu.classList.add('hidden'); hud.show(true); }
 
-ui.play.addEventListener('click', () => {
-  sfx.init();
-  input.lock();
-});
+function startPlaying() {
+  if (state === 'menu') { state = 'play'; hud.banner(L.name.toUpperCase(), L.tagline, '#ffcf4a', 3); }
+  paused = false; hideMenu();
+}
+
+ui.play.addEventListener('click', () => { sfx.init(); input.lock(); });
 ui.restart.addEventListener('click', () => { sfx.init(); restartRun(); input.lock(); });
 input.onLockChange = (locked) => {
   if (renderer.xr.isPresenting) return;
-  if (locked) {
-    if (state === 'menu') { state = 'play'; hud.banner('GO!', 'Reach the finish', '#ffcf4a', 1.5); }
-    paused = false; hideMenu();
-  } else if (state !== 'menu') {
-    paused = true; showMenu('Paused');
-  }
+  if (locked) startPlaying();
+  else if (state !== 'menu') { paused = true; showMenu(); }
 };
+addEventListener('keydown', (e) => { if (e.code === 'Enter' && state === 'won') nextLevel(); });
 
 let xrSession = null;
 async function setupVR() {
@@ -162,7 +243,7 @@ async function setupVR() {
   try { ok = await navigator.xr.isSessionSupported('immersive-vr'); } catch { ok = false; }
   if (!ok) { ui.vrnote.textContent = 'No VR headset detected. On Meta Quest, open this page in the Quest Browser and press ENTER VR.'; return; }
   ui.vr.disabled = false;
-  ui.vrnote.textContent = 'Headset detected. Press ENTER VR, then use your controllers.';
+  ui.vrnote.textContent = 'Headset detected. Pick a level, press ENTER VR, then use your controllers.';
   ui.vr.addEventListener('click', async () => {
     sfx.init();
     if (xrSession) { xrSession.end(); return; }
@@ -178,15 +259,15 @@ setupVR();
 
 renderer.xr.addEventListener('sessionstart', () => {
   if (document.pointerLockElement) document.exitPointerLock();
-  hud.setXR(true); hideMenu();
-  if (state === 'menu') { state = 'play'; hud.banner('GO!', 'Reach the finish', '#ffcf4a', 1.5); }
-  paused = false; xrFresh = true; rigYaw = viewYaw;
+  hud.setXR(true);
+  startPlaying();
+  xrFresh = true; rigYaw = viewYaw;
 });
 renderer.xr.addEventListener('sessionend', () => {
   hud.setXR(false);
   camera.position.set(0, EYE, 0); camera.rotation.set(0, 0, 0); camera.quaternion.identity();
   viewYaw = rigYaw; pitch = 0;
-  paused = true; showMenu('Paused');
+  paused = true; showMenu();
 });
 
 addEventListener('resize', () => {
@@ -212,10 +293,29 @@ function placeRig(inXR) {
   } else {
     rig.position.copy(player.pos);
     rig.rotation.set(0, viewYaw, 0);
-    camera.position.set(0, EYE, 0);
+    camera.position.set((Math.random() - 0.5) * shake * 0.4, EYE + (Math.random() - 0.5) * shake * 0.4, 0);
     camera.rotation.set(pitch, 0, 0);
   }
   rig.updateMatrixWorld(true);
+}
+
+function handleEvents() {
+  for (const e of world.events) {
+    if (e.type === 'shake') shake = Math.max(shake, e.amount);
+    else if (e.type === 'bossWake') { hud.boss(true, world.boss.hp / world.boss.maxHp); hud.banner('THE SKY KING AWAKENS!', 'Smash the glowing crystals on his towers!', '#ff5a8a', 3); updateStats(); }
+    else if (e.type === 'bossHit') {
+      hud.boss(true, e.hp / e.max);
+      if (e.hp > 0) hud.banner('CRYSTAL SMASHED!', `The Sky King is weakening… ${e.hp} crystal${e.hp > 1 ? 's' : ''} left`, '#7af7ff', 3);
+      fireworks.burst(player.pos, 2, 6);
+    } else if (e.type === 'bossDefeated') {
+      hud.boss(false);
+      hud.banner('THE SKY KING FALLS!', '', '#ffcf4a', 3);
+      fireworks.burst(world.boss.c, 14, 40);
+      world.finishPos.copy(world.boss.c);
+      winT = 3.2;
+    }
+  }
+  world.events.length = 0;
 }
 
 renderer.setAnimationLoop(() => {
@@ -224,20 +324,19 @@ renderer.setAnimationLoop(() => {
   const playing = (state === 'play' || state === 'won') && !paused;
   const dsk = input.read();
 
-  if (!paused) { gameTime += dt; world.update(gameTime, dt); }
+  if (!paused) { gameTime += dt; world.camPos.copy(player.pos); world.update(gameTime, dt); }
+  handleEvents();
 
   if (playing) {
     let inp;
     if (inXR) {
       const xi = xr.poll(dt);
-      // physical head movement inside the play space moves the body
       rotY(camera.position, rigYaw, headOff); headOff.y = 0;
       if (!xrFresh && !player.hang) player.pos.add(fwdTmp.subVectors(headOff, prevHeadOff));
       xrFresh = false;
       if (xi.turn) { rigYaw -= xi.turn * Math.PI / 6; rotY(camera.position, rigYaw, headOff); headOff.y = 0; }
       prevHeadOff.copy(headOff);
       placeRig(true);
-      // head yaw for locomotion direction
       camera.getWorldQuaternion(q);
       fwdTmp.set(0, 0, -1).applyQuaternion(q);
       const headYaw = Math.atan2(-fwdTmp.x, -fwdTmp.z);
@@ -248,6 +347,7 @@ renderer.setAnimationLoop(() => {
         rotY(h.velLocal, rigYaw, H.vel);
         H.held = h.held && !!h.source; H.pressed = h.pressed;
       });
+      if (state === 'won' && xi.jump) { nextLevel(); renderer.render(scene, camera); return; }
       inp = { move: xi.move, yaw: headYaw, jump: xi.jump, hands: vrHands };
       if (xi.respawn) { if (state === 'won') restartRun(); else respawn(); }
     } else {
@@ -277,61 +377,62 @@ renderer.setAnimationLoop(() => {
       }
     }
 
-    // finish
-    if (state === 'play' && player.onGround && player.ground === world.finishCol) {
-      state = 'won'; sfx.win(); burstConfetti();
-      hud.banner('YOU MADE IT!', `Time ${fmtTime(runTime)}  ·  Deaths ${deaths}  ·  ${inXR ? 'B' : 'R'} to run again`, '#ffcf4a', 0);
-    }
-
-    // death
-    if (state === 'play' && player.pos.y < world.killY) {
-      state = 'dead'; deadT = 0; deaths++; updateStats();
-      sfx.death();
-      hud.banner('YOU FELL TO YOUR DEATH', 'Respawning at checkpoint…', '#ff4a3a', 0);
-    }
+    if (state === 'play' && world.finishCol && player.onGround && player.ground === world.finishCol) win();
+    if (state === 'play' && winT > 0) { winT -= dt; if (winT <= 0) win(); }
+    if (state === 'play' && player.pos.y < world.killY) die('YOU FELL TO YOUR DEATH', 'Respawning at checkpoint…');
 
     if (state === 'play') runTime += dt;
+    const bossHint = isBoss() && world.boss.state !== 'dead' && world.boss.state !== 'dying' && player.pos.z < -127 ? world.boss.hint : '';
     hud.set('hint', player.hang
-      ? (inXR ? 'A / X to launch  ·  let go to drop' : 'SPACE to launch  ·  release E to drop')
-      : player.grabInRange ? (inXR ? 'Squeeze grip to grab' : 'Hold E / mouse to grab') : '');
-    sfx.setWind(player.vel.length());
+      ? (player.hang.g.kind === 'hold'
+        ? (inXR ? 'Pull down to climb · A/X to reach up' : 'SPACE reach up · A/D + SPACE sideways · S + SPACE kick off')
+        : (inXR ? 'A / X to launch · let go to drop' : 'SPACE to launch · release E to drop'))
+      : player.grabInRange ? (inXR ? 'Squeeze grip to grab' : 'Hold E / mouse to grab') : bossHint);
+    sfx.setWind(player.vel.length(), player.sliding);
   } else if (state === 'dead' && !paused) {
     deadT += dt;
     if (inXR) xr.poll(dt);
     if (deadT > 2.0) {
       respawn(); state = 'play'; fadeIn = 1; hud.clearBanner();
+      if (isBoss()) hud.boss(world.boss.state !== 'dead', world.boss.hp / world.boss.maxHp);
       if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; prevHeadOff.copy(headOff); }
     }
-    sfx.setWind(0);
+    sfx.setWind(0, false);
   }
 
-  // camera / rig placement
   if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; }
+  shake = Math.max(0, shake - dt * 1.5);
   placeRig(inXR);
 
-  // fade: falling → black, then fade back in after respawn
+  // fade to black while falling, then back in after respawn
+  const fadeY = world.killY + 20;
   let fade = 0;
-  if (state === 'dead') fade = Math.min(1, 0.85 + deadT);
-  else if (state === 'play') fade = Math.max(0, Math.min(0.85, (FADE_Y - player.pos.y) / (FADE_Y - world.killY) * 0.85));
+  if (state === 'dead') fade = Math.min(1, (deathMsg === 'KNOCKED OUT!' ? 0.5 : 0.85) + deadT);
+  else if (state === 'play') fade = Math.max(0, Math.min(0.85, (fadeY - player.pos.y) / (fadeY - world.killY) * 0.85));
   if (fadeIn > 0) { fadeIn = Math.max(0, fadeIn - dt * 1.6); fade = Math.max(fade, fadeIn); }
   hud.fade(fade);
 
   hud.set('time', fmtTime(runTime));
   hud.update(dt, player.grabInRange && !inXR);
-  updateConfetti(dt);
 
-  // sun shadow follows the player
   sun.target.position.copy(player.pos);
   sun.position.copy(player.pos).addScaledVector(sunDir, 120);
-  seaMat.uniforms.time.value = gameTime;
+  if (seaMat) seaMat.uniforms.time.value = gameTime;
 
   renderer.render(scene, camera);
 });
 
-// Debug hook (handy from the browser console): __sky.tp(z) teleports to the platform nearest z.
+// ---------- boot ----------
+loadLevel(0);
+renderMenu();
+ui.loading.classList.add('hidden');
+showMenu();
+
+// Debug hook (browser console): __sky.tp(x, y, z), __sky.load(i)
 window.__sky = {
-  player, world, camera, input,
+  get player() { return player; }, get world() { return world; }, camera, input,
   look(y, p) { viewYaw = y; pitch = p; },
   tp(x, y, z) { player.reset(new THREE.Vector3(x, y, z)); },
+  load(i) { selected = i; loadLevel(i); },
   get state() { return state; },
 };
