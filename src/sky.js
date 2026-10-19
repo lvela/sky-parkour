@@ -38,7 +38,7 @@ void main() {
 const domeFrag = /* glsl */`
 uniform samplerCube skyMap;
 uniform vec3 sunDir, avgHorizon, zenith, sunCol, tint;
-uniform float cov, cloudBright, cloudShade, cirrus, stars, milky;
+uniform float cov, cloudBright, cloudShade, cirrus, stars, milky, nebula, space;
 uniform vec3 moonDir; uniform float moonSize, moonBright;
 uniform vec3 planetDir; uniform float planetSize, planetBright; uniform vec3 planetA, planetB, ringN;
 varying vec3 vDir;
@@ -70,7 +70,7 @@ void main() {
   vec3 horizon = horizonAt(d);
   float hl = lum(horizon);
   vec3 white = mix(vec3(hl), horizon, 0.3);
-  float above = smoothstep(-0.02, 0.05, d.y);
+  float above = space > 0.5 ? 1.0 : smoothstep(-0.02, 0.05, d.y);
   float dark = clamp(1.0 - lum(base) * 6.0, 0.0, 1.0); // celestial objects only show in a dark sky
 
   // stars + Milky Way
@@ -85,6 +85,17 @@ void main() {
     vec3 mw = mix(vec3(0.45, 0.5, 0.85), vec3(0.95, 0.75, 0.85), neb) * band * neb * (1.0 - dust * 0.85);
     col += mw * milky * dark * above * 0.035;
     col += starField(d * 1.7 + 0.3) * band * milky * dark * above * 0.03;
+  }
+
+  // nebula clouds
+  if (nebula > 0.0) {
+    vec2 sc = vec2(atan(d.z, d.x) * 1.6, d.y * 2.6);
+    float n1 = fbm(sc * 1.4 + 7.0);
+    float n2 = fbm(sc * 2.7 - 3.0);
+    float neb = smoothstep(0.42, 0.85, n1);
+    vec3 nc = mix(vec3(0.55, 0.12, 0.75), vec3(0.1, 0.55, 0.8), n2);
+    nc = mix(nc, vec3(1.0, 0.35, 0.45), smoothstep(0.6, 0.85, fbm(sc * 4.0 + 1.0)) * 0.6);
+    col += nc * neb * nebula * 0.09 * (0.6 + 0.4 * n2);
   }
 
   // ringed planet
@@ -160,7 +171,7 @@ void main() {
       float cd = smoothstep(0.55, 0.85, ci) * 0.5 * cirrus * smoothstep(0.03, 0.35, d.y) * (1.0 - dens);
       col = mix(col, white * 1.5 * cloudBright * tint + sunCol * ph * 0.3, cd);
     }
-  } else {
+  } else if (space < 0.5) {
     col = mix(horizon, white * 1.05 * tint, smoothstep(0.0, -0.08, d.y));
   }
   gl_FragColor = vec4(col, 1.0);
@@ -279,7 +290,7 @@ export function bakeSky(renderer, sky, exposure) {
       skyMap: { value: rtSky.texture }, sunDir: { value: lightDir },
       avgHorizon: { value: avgHorizon }, zenith: { value: colors.zenith }, sunCol: { value: colors.sunH },
       tint: { value: tint }, cov: { value: sky.cov ?? 0.52 }, cloudBright: { value: sky.cloudBright ?? 1 }, cloudShade: { value: sky.cloudShade ?? 1 },
-      cirrus: { value: sky.cirrus ?? 1 }, stars: { value: sky.stars ?? 0 }, milky: { value: sky.milky ?? 0 },
+      cirrus: { value: sky.cirrus ?? 1 }, stars: { value: sky.stars ?? 0 }, milky: { value: sky.milky ?? 0 }, nebula: { value: sky.nebula ?? 0 }, space: { value: sky.space ? 1 : 0 },
       moonDir: { value: moon ? dirFrom(moon.elev, moon.az) : new THREE.Vector3(0, 1, 0) },
       moonSize: { value: moon ? THREE.MathUtils.degToRad(moon.size) : 0 }, moonBright: { value: moon ? moon.bright : 0 },
       planetDir: { value: planet ? dirFrom(planet.elev, planet.az) : new THREE.Vector3(0, 1, 0) },

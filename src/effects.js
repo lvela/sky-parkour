@@ -194,3 +194,53 @@ export function createFireworks(group, sfx) {
     },
   };
 }
+
+// Particles that wrap around the camera: falling snow or rising embers (GPU-animated points).
+function createDrift(group, world, { count, color, size, fall, sway, additive }) {
+  const r = rng(fall > 0 ? 41 : 43);
+  const pos = new Float32Array(count * 3), seed = new Float32Array(count);
+  for (let i = 0; i < count; i++) { pos.set([r() * 70, r() * 45, r() * 70], i * 3); seed[i] = r() * 6.28; }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    uniforms: { time: { value: 0 }, center: { value: world.camPos }, color: { value: new THREE.Color(color) }, size: { value: size }, fall: { value: fall }, sway: { value: sway }, wind: { value: 0 } },
+    vertexShader: /* glsl */`
+      attribute float seed; uniform float time, size, fall, sway, wind; uniform vec3 center; varying float vSeed;
+      void main() {
+        vec3 box = vec3(70.0, 45.0, 70.0);
+        vec3 p = position;
+        p.y -= time * fall * (0.7 + 0.3 * sin(seed));
+        p.x += sin(time * 0.7 + seed) * sway + time * wind;
+        p.z += cos(time * 0.5 + seed * 1.3) * sway;
+        p = mod(p - center + box * 0.5, box) - box * 0.5 + center;
+        vSeed = seed;
+        vec4 mv = viewMatrix * vec4(p, 1.0);
+        gl_PointSize = size * (300.0 / max(1.0, -mv.z));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 color; uniform float time; varying float vSeed;
+      void main() {
+        vec2 q = gl_PointCoord - 0.5; float d = length(q);
+        if (d > 0.5) discard;
+        float a = smoothstep(0.5, 0.0, d) * (0.6 + 0.4 * sin(time * 3.0 + vSeed * 5.0));
+        gl_FragColor = vec4(color, a);
+      }`,
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  group.add(pts);
+  const fn = (t) => { mat.uniforms.time.value = t; };
+  fn.uniforms = mat.uniforms;
+  return fn;
+}
+
+export function createSnow(group, world) {
+  return createDrift(group, world, { count: 2200, color: 0xffffff, size: 0.09, fall: 2.2, sway: 1.2, additive: false });
+}
+
+export function createEmbers(group, world) {
+  return createDrift(group, world, { count: 900, color: 0xff7a20, size: 0.11, fall: -3.0, sway: 1.6, additive: true });
+}

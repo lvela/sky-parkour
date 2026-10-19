@@ -1,6 +1,8 @@
 // THE SKY KING — a giant armoured golem on the castle keep. You can't hit him directly:
-// parkour up each of his three towers (climb, trampolines, moving wall jumps) and smash the
-// crystal on top. Meanwhile he slams shockwaves, hurls boulders and (later) spins a flail arm.
+// smash five crystals with parkour — three towers (climb, trampolines, moving wall jumps), a
+// crumbling spiral, and finally the gem in his own crown, reached via platforms orbiting him.
+// He fights back harder after every crystal: shockwaves, boulder volleys, spinning flails,
+// lightning strikes and arm swats. Knock-outs let him regain a crystal.
 import * as THREE from 'three';
 import { boxGeo } from './textures.js';
 import { Collider } from './world.js';
@@ -11,14 +13,17 @@ export class Boss {
   constructor(b, { cx, cz, y0 }) {
     this.b = b; this.world = b.world; this.sfx = b.sfx;
     this.c = new V3(cx, y0, cz); this.y0 = y0;
-    this.hp = 3; this.maxHp = 3;
+    this.hp = 5; this.maxHp = 5;
     this.state = 'dormant'; // dormant | fight | dying | dead
-    this.anim = { slam: 0, throw: 0, flash: 0, roar: 0 };
-    this.tShock = 3; this.tBoulder = 2; this.tAction = 0;
-    this.waves = []; this.boulders = []; this.debris = [];
+    this.anim = { slam: 0, throw: 0, flash: 0, roar: 0, swat: 0 };
+    this.tShock = 3; this.tBoulder = 2; this.tLightning = 4; this.tSwat = 2; this.waveQueue = 0;
+    this.waves = []; this.boulders = []; this.debris = []; this.strikes = [];
     this.time = 0;
     this.buildArenaPieces();
     this.buildBody();
+    // tower E: the gem in his crown
+    this.towers.push({ name: 'CROWN', hint: 'Ride the orbiting platforms, bounce onto his head and smash the crown gem!',
+      pos: new V3(cx, y0 + 12.4, cz), crystal: this.gem, mat: this.gemMat, beam: this.gemBeam, beamMat: this.gemBeam.material, done: false, attached: true, radius: 2.8 });
     this.setActiveTower(0);
   }
 
@@ -42,7 +47,7 @@ export class Boss {
       b.add(beam);
       const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.6, 10), b.M.gold);
       ped.position.set(x, y + 0.3, z); b.add(ped);
-      towers.push({ name, hint, pos: new V3(x, y, z), crystal: m, mat, beam, beamMat, done: false });
+      towers.push({ name, hint, pos: new V3(x, y, z), crystal: m, mat, beam, beamMat, done: false, radius: 2.0 });
     };
 
     // A — WEST: rock-climbing tower
@@ -64,6 +69,28 @@ export class Boss {
         motion: (t) => { const o = b.zero(); o.z = s * (0.35 + 0.35 * Math.sin(t * 1.4)); return o; } });
     }
     mkCrystal(cx + 16.5, y0 + 12, cz, 'EAST TOWER', 'Wall jump up the moving shaft on the east tower!');
+
+    // D — SOUTH-EAST: a spiral of crumbling steps up to a floating crystal
+    const sx = cx + 13, sz = cz + 12;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI * 0.75 - i * (Math.PI / 4);
+      b.plat({ x: sx + Math.cos(a) * 4, y: y0 + 1.4 * (i + 1), z: sz + Math.sin(a) * 4, w: 2.4, d: 2.4, h: 0.5, style: 'brick', type: 'crumble' });
+    }
+    { const a = Math.PI * 0.75 - 7 * (Math.PI / 4);
+      const px = sx + Math.cos(a) * 4, pz = sz + Math.sin(a) * 4;
+      b.plat({ x: px, y: y0 + 11.2, z: pz, w: 3, d: 3, h: 0.6, style: 'brick' });
+      mkCrystal(px, y0 + 11.2, pz, 'CRUMBLING SPIRAL', 'Race up the crumbling spiral steps to the floating crystal!'); }
+
+    // E — orbiting platforms that spiral around the King (appear for the final crystal)
+    this.orbit = [];
+    const R = 8, w = 0.35;
+    [1.3, 2.8, 4.3, 5.8].forEach((h, i) => {
+      const tramp = i === 3;
+      const col = b.plat({ x: cx, y: y0 + h, z: cz, w: 3, d: 3, h: tramp ? 0.6 : 0.4, style: tramp ? 'tramp' : 'metal', type: tramp ? 'tramp' : 'solid', bounce: 19,
+        motion: (t) => { const o = b.zero(); const a = t * w + i * (Math.PI / 6); o.x = Math.cos(a) * R; o.z = -Math.sin(a) * R; o.yaw = a; return o; } });
+      col.active = false; col.mesh.visible = false;
+      this.orbit.push(col);
+    });
   }
 
   buildBody() {
@@ -73,6 +100,7 @@ export class Boss {
     root.position.set(cx, this.y0 + 1, cz);
     b.add(root);
     const armor = this.armorMat = new THREE.MeshStandardMaterial({ color: 0xa8aec2, metalness: 0.7, roughness: 0.3, emissive: 0x000000 });
+    this.fistMat = new THREE.MeshStandardMaterial({ color: 0xa8aec2, metalness: 0.7, roughness: 0.3, emissive: 0x000000 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x4a3a5e, metalness: 0.5, roughness: 0.5 });
     const gold = b.M.gold;
     const eyeMat = this.eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3020, toneMapped: false });
@@ -93,7 +121,7 @@ export class Boss {
       const sh = new THREE.Group(); sh.position.set(s * 3.6, 9, 0); root.add(sh);
       add(sh, new THREE.SphereGeometry(1.5, 16, 12), armor, 0, 0, 0);
       add(sh, boxGeo(1.3, 4.4, 1.3, 2), dark, 0, -2.6, 0);
-      add(sh, boxGeo(2.1, 2.1, 2.1, 2), armor, 0, -5.4, 0.2);
+      add(sh, boxGeo(2.1, 2.1, 2.1, 2), s > 0 ? (this.fistMat || armor) : armor, 0, -5.4, 0.2);
       for (let k = -1; k <= 1; k++) add(sh, new THREE.ConeGeometry(0.25, 0.7, 6), gold, k * 0.6, -5.4, 1.35).rotation.x = Math.PI / 2;
       this.arms.push(sh);
     }
@@ -106,8 +134,13 @@ export class Boss {
       const a = (k / 6) * Math.PI * 2;
       add(head, new THREE.ConeGeometry(0.28, 0.9, 6), gold, Math.cos(a) * 1.35, 2.35, Math.sin(a) * 1.35);
     }
-    const gem = add(head, new THREE.OctahedronGeometry(0.35, 0), new THREE.MeshBasicMaterial({ color: 0xff2a6a, toneMapped: false }), 0, 1.7, 1.45);
-    gem.scale.set(1, 1.3, 0.6);
+    this.gemMat = new THREE.MeshStandardMaterial({ color: 0xff2a6a, emissive: 0xff2a6a, emissiveIntensity: 0.4, toneMapped: false });
+    const gem = this.gem = add(head, new THREE.OctahedronGeometry(0.55, 0), this.gemMat, 0, 2.3, 0);
+    gem.scale.set(1, 1.5, 1);
+    this.gemBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 120, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xff2a6a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    this.gemBeam.position.set(cx, this.y0 + 74, cz);
+    b.add(this.gemBeam);
+
     // body collider so you can't run through him
     const holder = new THREE.Object3D(); holder.position.set(cx, this.y0 + 1 + 6, cz);
     this.bodyCol = new Collider(holder, 2.9, 6, 1.9);
@@ -152,22 +185,35 @@ export class Boss {
       tw.beamMat.opacity = on ? 0.18 : 0;
     });
     this.active = i;
+    const orbitOn = i === 4;
+    if (this.orbit) for (const c of this.orbit) { c.active = orbitOn; c.mesh.visible = orbitOn; }
   }
 
   get hint() {
     if (this.state === 'dormant') return 'Step into the arena to face the Sky King';
     const tw = this.towers[this.active];
-    return tw ? tw.hint : '';
+    return tw ? tw.hint + (this.phase >= 2 ? '  ·  Jump when his fist glows red!' : '') : '';
   }
 
   // called when the player respawns: calm down and wait for them to re-enter
-  reset() {
+  reset(knockedOut = false) {
     for (const w of this.waves) this.b.g.remove(w.mesh);
     for (const bo of this.boulders) { this.b.g.remove(bo.mesh); this.b.g.remove(bo.marker); }
-    this.waves = []; this.boulders = [];
-    if (this.state === 'fight') this.state = 'dormant';
-    this.anim.slam = this.anim.throw = 0;
+    for (const st of this.strikes) this.b.g.remove(st.marker, st.bolt);
+    this.waves = []; this.boulders = []; this.strikes = []; this.waveQueue = 0;
+    const wasFighting = this.state === 'fight';
+    if (wasFighting) this.state = 'dormant';
+    this.anim.slam = this.anim.throw = this.anim.swat = 0;
     for (const f of this.flails) { f.col.active = false; f.vis.visible = false; }
+    // a knock-out lets the King regain his last crystal
+    if (knockedOut && wasFighting && this.hp < this.maxHp && this.active > 0) {
+      const k = this.active - 1, tw = this.towers[k];
+      tw.done = false; tw.crystal.visible = true;
+      this.hp++;
+      this.setActiveTower(k);
+      this.sfx.heal();
+      this.world.events.push({ type: 'bossHeal', hp: this.hp, max: this.maxHp });
+    }
   }
 
   wake() {
@@ -178,7 +224,7 @@ export class Boss {
   }
 
   updateFlails() {
-    const n = this.phase >= 2 ? 2 : this.phase >= 1 ? 1 : 0;
+    const n = this.phase >= 3 ? 2 : this.phase >= 1 ? 1 : 0;
     this.flails.forEach((f, k) => { const on = this.state === 'fight' && k < n; f.col.active = on; f.vis.visible = on; });
   }
 
@@ -187,7 +233,7 @@ export class Boss {
     this.time += dt;
     const P = this.world.player;
     const y0 = this.y0, c = this.c;
-    this.towers.forEach((tw) => { tw.crystal.rotation.y += dt * 1.5; tw.crystal.position.y = tw.pos.y + 1.6 + Math.sin(t * 2) * 0.2; });
+    this.towers.forEach((tw) => { if (tw.attached) return; tw.crystal.rotation.y += dt * 1.5; tw.crystal.position.y = tw.pos.y + 1.6 + Math.sin(t * 2) * 0.2; });
     const cp = this.cape.geometry.attributes.position;
     for (let i = 0; i < cp.count; i++) {
       const by = this.capeBase[i * 3 + 1], bx = this.capeBase[i * 3];
@@ -214,22 +260,34 @@ export class Boss {
     const tw = this.towers[this.active];
     if (this.state === 'fight' && tw) {
       const hx = P.pos.x - tw.pos.x, hz = P.pos.z - tw.pos.z, hy = P.pos.y - tw.pos.y;
-      if (hx * hx + hz * hz < 2.0 * 2.0 && hy > -0.3 && hy < 2.5) this.hitCrystal(tw);
+      if (hx * hx + hz * hz < tw.radius * tw.radius && hy > -0.3 && hy < 2.5) this.hitCrystal(tw);
     }
 
     if (this.state === 'fight') {
-      const speed = [1, 1.35, 1.7][this.phase] || 1.7;
+      const speed = [1, 1.25, 1.5, 1.8, 2.1][this.phase] || 2.1;
       this.flailAngle += dt * (0.55 + this.phase * 0.3);
       const onFloor = P.pos.y < y0 + 2.5 && inArena;
+      const busy = this.anim.slam > 0 || this.anim.throw > 0 || this.anim.swat > 0;
       this.tShock -= dt * speed;
-      if (this.tShock <= 0 && this.anim.slam <= 0) { this.anim.slam = 1.0; this.tShock = 6.5; }
+      if (this.tShock <= 0 && !busy) { this.anim.slam = 1.0; this.tShock = 6.5; }
       this.tBoulder -= dt * speed;
-      if (this.tBoulder <= 0 && onFloor && this.anim.throw <= 0) { this.anim.throw = 0.9; this.tBoulder = 4.5; }
+      if (this.tBoulder <= 0 && onFloor && !busy) { this.anim.throw = 0.9; this.tBoulder = 4.5; }
+      // lightning from phase 2: follows you anywhere, towers included
+      if (this.phase >= 2 && inArena) {
+        this.tLightning -= dt * speed;
+        if (this.tLightning <= 0) { this.tLightning = 6; this.spawnStrike(P); }
+      }
+      // arm swat: punishes hanging around high up near him
+      this.tSwat -= dt * Math.min(speed, 1.4);
+      const near = Math.hypot(dx, dz) < 11 && P.pos.y > y0 + 2.2;
+      if (near && this.tSwat <= 0 && !busy) { this.anim.swat = 0.95; this.tSwat = 3.5; this.sfx.swat(); }
+      if (this.waveQueue > 0) { this.waveQueue -= dt; if (this.waveQueue <= 0) this.spawnWave(); }
     }
 
     this.animate(dt);
     this.updateWaves(dt, P);
     this.updateBoulders(dt, P);
+    this.updateStrikes(dt, P);
   }
 
   animate(dt) {
@@ -248,6 +306,14 @@ export class Boss {
       ra = k < 0.6 ? -3.0 * (k / 0.6) : -3.0 + 4.0 * Math.min(1, (k - 0.6) / 0.15);
       if (prev > 0.35 && a.throw <= 0.35) this.spawnBoulder();
     }
+    if (a.swat > 0) {
+      const prev = a.swat; a.swat -= dt;
+      const k = 1 - a.swat / 0.95;
+      ra = k < 0.55 ? -1.6 * (k / 0.55) : -1.6 + 1.6 * Math.min(1, (k - 0.55) / 0.15);
+      this.arms[1].rotation.z = k < 0.55 ? 1.3 * (k / 0.55) : 1.3 * (1 - Math.min(1, (k - 0.55) / 0.2));
+      this.fistMat.emissive.setRGB(k < 0.6 ? 0.9 * k : 0, 0.05, 0);
+      if (prev > 0.38 && a.swat <= 0.38) this.swatHit();
+    } else { this.arms[1].rotation.z *= 0.9; this.fistMat.emissive.setRGB(0, 0, 0); }
     if (a.roar > 0) { a.roar -= dt; la = Math.min(la, -1.2); ra = Math.min(ra, -1.2); this.head.rotation.x = -0.5; }
     this.arms[0].rotation.x += (la - this.arms[0].rotation.x) * Math.min(1, dt * 14);
     this.arms[1].rotation.x += (ra - this.arms[1].rotation.x) * Math.min(1, dt * 14);
@@ -265,6 +331,7 @@ export class Boss {
     mesh.position.set(this.c.x, this.y0 + 0.45, this.c.z);
     this.b.g.add(mesh);
     this.waves.push({ r: 4.2, mesh, hit: false });
+    if (this.phase >= 3 && !this.secondWave) { this.secondWave = true; this.waveQueue = 0.6; } else this.secondWave = false;
     this.sfx.slam();
     this.world.events.push({ type: 'shake', amount: 0.6 });
   }
@@ -287,10 +354,17 @@ export class Boss {
   }
 
   spawnBoulder() {
+    const n = this.phase >= 4 ? 3 : this.phase >= 2 ? 2 : 1;
+    for (let k = 0; k < n; k++) this.throwOne(k === 0 ? 0 : (k === 1 ? 3.5 : -3.5));
+    this.sfx.throwRock();
+  }
+
+  throwOne(spread) {
     const P = this.world.player; if (!P) return;
     const from = new V3();
     this.arms[1].children[2].getWorldPosition(from);
     const to = P.pos.clone().addScaledVector(new V3(P.vel.x, 0, P.vel.z), 0.6);
+    if (spread) { const a = Math.random() * Math.PI * 2; to.x += Math.cos(a) * spread; to.z += Math.sin(a) * spread; }
     to.y = this.y0;
     const lim = 19; to.x = Math.max(this.c.x - lim, Math.min(this.c.x + lim, to.x)); to.z = Math.max(this.c.z - lim, Math.min(this.c.z + lim, to.z));
     const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.0, 1), new THREE.MeshStandardMaterial({ color: 0x6a5a4a, roughness: 1, flatShading: true, emissive: 0x401000 }));
@@ -299,7 +373,56 @@ export class Boss {
     marker.rotation.x = -Math.PI / 2; marker.position.set(to.x, this.y0 + 0.05, to.z);
     this.b.g.add(mesh, marker);
     this.boulders.push({ from, to, t: 0, dur: 1.4, mesh, marker });
-    this.sfx.throwRock();
+  }
+
+  // ---- lightning: a warning ring follows your position, then a bolt strikes it
+  spawnStrike(P) {
+    const g = this.b.g;
+    const marker = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 32), new THREE.MeshBasicMaterial({ color: 0xb48cff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    marker.rotation.x = -Math.PI / 2;
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 60, 6, 1, true), new THREE.MeshBasicMaterial({ color: 0xe0d0ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    g.add(marker, bolt);
+    this.strikes.push({ t: 0, track: 1.0, fire: 1.35, marker, bolt, at: P.pos.clone(), done: false });
+  }
+
+  updateStrikes(dt, P) {
+    for (let i = this.strikes.length - 1; i >= 0; i--) {
+      const st = this.strikes[i];
+      st.t += dt;
+      if (st.t < st.track && P) { st.at.x += (P.pos.x - st.at.x) * Math.min(1, dt * 5); st.at.z += (P.pos.z - st.at.z) * Math.min(1, dt * 5); st.at.y = P.onGround ? P.pos.y : st.at.y; }
+      st.marker.position.set(st.at.x, st.at.y + 0.05, st.at.z);
+      const pulse = 0.5 + 0.5 * Math.sin(st.t * (st.t > st.track ? 40 : 14));
+      st.marker.material.opacity = 0.35 + 0.6 * pulse;
+      st.marker.scale.setScalar(st.t > st.track ? 1.2 : 1);
+      if (!st.done && st.t >= st.fire) {
+        st.done = true;
+        st.bolt.position.set(st.at.x, st.at.y + 30, st.at.z);
+        st.bolt.material.opacity = 1;
+        this.sfx.zap();
+        this.world.events.push({ type: 'shake', amount: 0.3 });
+        if (P) {
+          const dx = P.pos.x - st.at.x, dz = P.pos.z - st.at.z;
+          if (dx * dx + dz * dz < 1.9 * 1.9 && Math.abs(P.pos.y - st.at.y) < 2.5) P.knock(dx || 0.5, dz || 0.5, 8, 9, 'boss');
+        }
+      }
+      if (st.done) st.bolt.material.opacity = Math.max(0, st.bolt.material.opacity - dt * 5);
+      if (st.t > st.fire + 0.35) {
+        this.b.g.remove(st.marker, st.bolt);
+        st.marker.geometry.dispose(); st.bolt.geometry.dispose();
+        this.strikes.splice(i, 1);
+      }
+    }
+  }
+
+  swatHit() {
+    const P = this.world.player; if (!P) return;
+    const dx = P.pos.x - this.c.x, dz = P.pos.z - this.c.z;
+    // jumping over the swing dodges it
+    if ((P.onGround || P.hang) && Math.hypot(dx, dz) < 11.5 && P.pos.y > this.y0 + 1.8 && P.pos.y < this.y0 + 15) {
+      // only hits in the half he's facing
+      const fx = Math.sin(this.root.rotation.y), fz = Math.cos(this.root.rotation.y);
+      if ((dx * fx + dz * fz) > 0) P.knock(dx, dz, 13, 6, 'boss');
+    }
   }
 
   updateBoulders(dt, P) {
@@ -354,7 +477,8 @@ export class Boss {
   hitCrystal(tw) {
     tw.done = true;
     tw.crystal.visible = false; tw.beamMat.opacity = 0;
-    this.burst(tw.crystal.position.clone().setY(tw.pos.y + 1), 0x7af7ff, 24);
+    const at = new V3(); tw.crystal.getWorldPosition(at);
+    this.burst(at, tw.attached ? 0xff2a6a : 0x7af7ff, 24);
     this.hp--;
     this.anim.flash = 1.2; this.anim.roar = 1.0;
     this.sfx.bossHit();
@@ -365,11 +489,13 @@ export class Boss {
       this.state = 'dying'; this.dyingT = 0;
       for (const f of this.flails) { f.col.active = false; f.vis.visible = false; }
       for (const w of this.waves) this.b.g.remove(w.mesh);
-      this.waves = [];
+      for (const st of this.strikes) this.b.g.remove(st.marker, st.bolt);
+      this.waves = []; this.strikes = [];
+      for (const c of this.orbit) { c.active = false; c.mesh.visible = false; }
       return;
     }
     this.setActiveTower(this.active + 1);
-    this.tShock = 3; this.tBoulder = 3;
+    this.tShock = 3; this.tBoulder = 3; this.tLightning = 3;
     this.updateFlails();
   }
 

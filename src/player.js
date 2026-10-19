@@ -22,6 +22,7 @@ export class Player {
     this.hang = null; this.block = new Map(); this.grabCool = 0; this.time = 0;
     this.yawDelta = 0; this.grabInRange = false; this.landV = 0;
     this.stun = 0; this.invuln = 0; this.onKnock = null;
+    this.gScale = 1;
   }
 
   get sliding() { return this.onGround && this.ground && this.ground.type === 'ramp'; }
@@ -186,7 +187,7 @@ export class Player {
     if (this.sliding) {
       // slide: gravity pulls you down the ramp, you can steer and pump but not stop
       const s = g.slope, dl = -Math.sign(s), k = Math.abs(s) / Math.sqrt(1 + s * s);
-      v.x += g.sn * dl * G * k * dt; v.z += g.cs * dl * G * k * dt;
+      v.x += g.sn * dl * G * this.gScale * k * dt; v.z += g.cs * dl * G * this.gScale * k * dt;
       // steer sideways only; pulling back brakes
       const vs = Math.hypot(v.x, v.z) || 1, ux = v.x / vs, uz = v.z / vs;
       const along = wx * ux + wz * uz;
@@ -196,7 +197,7 @@ export class Player {
       if (sp > SLIDE_MAX) { v.x *= SLIDE_MAX / sp; v.z *= SLIDE_MAX / sp; }
     } else if (this.onGround) {
       const tx = wx * RUN, tz = wz * RUN;
-      const ax = tx - v.x, az = tz - v.z, al = Math.hypot(ax, az), maxA = 70 * dt;
+      const ax = tx - v.x, az = tz - v.z, al = Math.hypot(ax, az), maxA = (g && g.type === 'ice' ? 9 : 70) * dt; // ice is slippery
       if (al > maxA) { v.x += ax / al * maxA; v.z += az / al * maxA; } else { v.x = tx; v.z = tz; }
     } else if (wl > 0.01) {
       // air steering: turns momentum toward the stick without bleeding launch speed
@@ -229,7 +230,7 @@ export class Player {
       }
     }
 
-    v.y -= G * dt;
+    v.y -= G * this.gScale * dt;
     if (this.wallRun && !jumped) {
       // wall slide: cling to the wall, glide forward and sink slowly
       const n = this.wallN;
@@ -322,6 +323,7 @@ export class Player {
       p.y += penUp;
       if (c.type === 'tramp') {
         v.y = c.bounce; this.coyote = 0; this.jumpBuf = 0;
+        if (c.push) { v.x = c.push.x; v.z = c.push.z; }
         if (c.onBounce) c.onBounce();
         this.sfx.bounce();
       } else {

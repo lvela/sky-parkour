@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bakeSky } from './sky.js';
 import { createCloudSea, createCloudBillboards, createIslands, ROCK_PALETTES } from './scenery.js';
-import { createRain, createLightning, createAurora, createBirds, createFireworks } from './effects.js';
+import { createRain, createLightning, createAurora, createBirds, createFireworks, createSnow, createEmbers } from './effects.js';
 import { makeTextures } from './textures.js';
 import { World } from './world.js';
 import { Builder } from './builder.js';
@@ -108,17 +108,20 @@ function loadLevel(i) {
   const b = new Builder(levelGroup, world, tex, sfx, theme);
   L.build(b);
   const S = L.scenery;
-  seaMat = createCloudSea(levelGroup, sky, S.sea);
-  createCloudBillboards(levelGroup, sky, S.clouds);
+  seaMat = S.sea === false ? null : createCloudSea(levelGroup, sky, S.sea);
+  if (S.clouds !== false) createCloudBillboards(levelGroup, sky, S.clouds);
   createIslands(levelGroup, { ...S.islands, palette: ROCK_PALETTES[S.islands.palette] });
   if (S.rain) world.anim.push(createRain(levelGroup, world));
   if (S.lightning) world.anim.push(createLightning(levelGroup, sfx, flashLight));
   if (S.aurora) world.anim.push(createAurora(levelGroup));
+  if (S.snow) world.anim.push(createSnow(levelGroup, world));
+  if (S.embers) world.anim.push(createEmbers(levelGroup, world));
   if (S.birds) world.anim.push(createBirds(levelGroup, new THREE.Vector3(0, 8, -150), 26, L.id === 'canyon' ? 0x2a1a14 : 0x222222));
   fireworks = createFireworks(levelGroup, sfx);
   world.anim.push(fireworks.update);
   world.player = player;
   player.world = world;
+  player.gScale = L.gravity ?? 1;
   restartRun(false);
   renderer.compile(scene, camera);
 }
@@ -130,7 +133,8 @@ function respawn() {
   xrFresh = true;
   world.resetCrumbles();
   hearts = 3;
-  if (world.boss) world.boss.reset();
+  if (world.boss) world.boss.reset(deathMsg === 'KNOCKED OUT!');
+  deathMsg = '';
   updateStats();
 }
 
@@ -142,6 +146,12 @@ function restartRun(play = true) {
   respawn();
   if (play) state = 'play';
   updateStats();
+}
+
+// Restart the current level from the top. The boss level is rebuilt so the King is back at full strength.
+function replay() {
+  if (isBoss()) { loadLevel(levelIndex); state = 'play'; }
+  else restartRun();
 }
 
 function nextLevel() {
@@ -214,7 +224,7 @@ function renderMenu() {
 
 function setMenuMode() {
   const inRun = state !== 'menu';
-  ui.sub.textContent = inRun ? `Paused — ${L.name}` : 'Thousands of feet up. Five worlds. One Sky King.';
+  ui.sub.textContent = inRun ? `Paused — ${L.name}` : `Thousands of feet up. ${LEVELS.length} worlds. One Sky King.`;
   ui.play.textContent = inRun ? 'RESUME' : 'PLAY';
   ui.restart.classList.toggle('hidden', !inRun);
 }
@@ -228,7 +238,7 @@ function startPlaying() {
 }
 
 ui.play.addEventListener('click', () => { sfx.init(); input.lock(); });
-ui.restart.addEventListener('click', () => { sfx.init(); restartRun(); input.lock(); });
+ui.restart.addEventListener('click', () => { sfx.init(); replay(); input.lock(); });
 input.onLockChange = (locked) => {
   if (renderer.xr.isPresenting) return;
   if (locked) startPlaying();
@@ -305,8 +315,11 @@ function handleEvents() {
     else if (e.type === 'bossWake') { hud.boss(true, world.boss.hp / world.boss.maxHp); hud.banner('THE SKY KING AWAKENS!', 'Smash the glowing crystals on his towers!', '#ff5a8a', 3); updateStats(); }
     else if (e.type === 'bossHit') {
       hud.boss(true, e.hp / e.max);
-      if (e.hp > 0) hud.banner('CRYSTAL SMASHED!', `The Sky King is weakening… ${e.hp} crystal${e.hp > 1 ? 's' : ''} left`, '#7af7ff', 3);
+      if (e.hp > 0) hud.banner('CRYSTAL SMASHED!', `${e.hp} crystal${e.hp > 1 ? 's' : ''} left — he's getting angrier…`, '#7af7ff', 3);
       fireworks.burst(player.pos, 2, 6);
+    } else if (e.type === 'bossHeal') {
+      hud.boss(true, e.hp / e.max);
+      hud.banner('THE SKY KING REGAINS A CRYSTAL!', 'Knock-outs heal him. Stay on your feet!', '#ff5a8a', 3);
     } else if (e.type === 'bossDefeated') {
       hud.boss(false);
       hud.banner('THE SKY KING FALLS!', '', '#ffcf4a', 3);
@@ -349,14 +362,14 @@ renderer.setAnimationLoop(() => {
       });
       if (state === 'won' && xi.jump) { nextLevel(); renderer.render(scene, camera); return; }
       inp = { move: xi.move, yaw: headYaw, jump: xi.jump, hands: vrHands };
-      if (xi.respawn) { if (state === 'won') restartRun(); else respawn(); }
+      if (xi.respawn) { if (state === 'won') replay(); else respawn(); }
     } else {
       viewYaw -= dsk.lookX * 0.0022;
       pitch = Math.max(-1.5, Math.min(1.5, pitch - dsk.lookY * 0.0022));
       deskHand.pos.set(player.pos.x - Math.sin(viewYaw) * 0.4, player.pos.y + 1.6, player.pos.z - Math.cos(viewYaw) * 0.4);
       deskHand.held = dsk.grab; deskHand.pressed = dsk.grabPressed;
       inp = { move: dsk.move, yaw: viewYaw, jump: dsk.jump, hands: [deskHand] };
-      if (dsk.respawn) { if (state === 'won') restartRun(); else respawn(); }
+      if (dsk.respawn) { if (state === 'won') replay(); else respawn(); }
     }
 
     const wasHang = player.hang;

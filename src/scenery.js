@@ -33,6 +33,9 @@ export const ROCK_PALETTES = {
   canyon: { soil: 0x8a3f1e, rockA: 0xb8603a, rockB: 0xd48a55, dark: 0x6e2e18, grassA: 0xc96f3b, grassB: 0x8a9a44 },
   storm: { soil: 0x2e2a28, rockA: 0x4a4d52, rockB: 0x5f646b, dark: 0x22252a, grassA: 0x2f4a2c, grassB: 0x3d5a35 },
   night: { soil: 0x1e1a24, rockA: 0x2f3040, rockB: 0x41435a, dark: 0x15151f, grassA: 0x1d3a2a, grassB: 0x2c5546 },
+  ice: { soil: 0x8fa6bd, rockA: 0x6f86a0, rockB: 0x9fb6cc, dark: 0x4a5d75, grassA: 0xeef4fb, grassB: 0xd6e4f2 },
+  volcano: { soil: 0x2a1a14, rockA: 0x3a2e2a, rockB: 0x55443c, dark: 0x1a1210, grassA: 0x3a2e2a, grassB: 0x6a2a14 },
+  space: { soil: 0x3a3448, rockA: 0x4a4458, rockB: 0x6a6280, dark: 0x221e2e, grassA: 0x5a5470, grassB: 0x7a7090 },
   castle: { soil: 0x3d2f2a, rockA: 0x5e5660, rockB: 0x766d78, dark: 0x2c2630, grassA: 0x3f6a36, grassB: 0x55803f },
 };
 const rockMats = new Map();
@@ -199,14 +202,14 @@ export function createCloudSea(scene, sky, opts = {}) {
     uniforms: {
       noiseTex: { value: tex }, bgMap: { value: sky.background },
       sunDir: { value: sky.sunDir }, time: { value: 0 },
-      white: { value: sky.white }, tint: { value: sky.tint }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
+      lava: { value: opts.lava ? 1 : 0 }, white: { value: sky.white }, tint: { value: sky.tint }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
     },
     vertexShader: /* glsl */`
       varying vec3 vWorld;
       void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: /* glsl */`
       uniform sampler2D noiseTex; uniform samplerCube bgMap;
-      uniform vec3 sunDir; uniform float time;
+      uniform vec3 sunDir; uniform float time; uniform float lava;
       uniform vec3 white; uniform vec3 tint; uniform vec3 zenith; uniform vec3 sunCol; uniform vec3 avgHorizon;
       varying vec3 vWorld;
       float field(vec2 uv) {
@@ -228,6 +231,13 @@ export function createCloudSea(scene, sky, opts = {}) {
         vec3 col = mix(shade, lit, light);
         vec3 gap = mix(zenith, avgHorizon, 0.3) * 0.42;
         col = mix(gap, col, dens);
+        if (lava > 0.5) {
+          // molten sea: dark crust broken by glowing, flowing veins
+          float veins = smoothstep(0.42, 0.62, n) * (1.0 - smoothstep(0.62, 0.8, n));
+          float hot = pow(1.0 - abs(n - 0.52) * 3.5, 3.0);
+          vec3 crust = vec3(0.05, 0.025, 0.02);
+          col = crust + vec3(4.0, 1.1, 0.15) * max(hot, 0.0) * (0.7 + 0.3 * sin(time * 1.5 + n * 20.0)) + vec3(1.2, 0.25, 0.03) * veins;
+        }
         vec3 far = textureCube(bgMap, vd).rgb;
         float fog = 1.0 - exp(-dist * 0.00028);
         col = mix(col, far, fog);

@@ -22,6 +22,9 @@ export class Builder {
       metal: std(tex.metal, { metalness: 0.85, roughness: 0.35 }),
       checker: std(tex.checker, { roughness: 0.6 }), brick: std(tex.brick), climb: std(tex.climb),
       slide: std(tex.slide, { roughness: 0.25, metalness: 0.1 }),
+      ice: std(tex.ice, { roughness: 0.06, metalness: 0.15 }),
+      basalt: std(tex.basalt, { emissive: 0xffffff, emissiveMap: tex.basalt, emissiveIntensity: 0.55 }),
+      panel: std(tex.panel, { roughness: 0.4, metalness: 0.6, emissive: 0xffffff, emissiveMap: tex.panel, emissiveIntensity: 0.45 }),
       gold: new THREE.MeshStandardMaterial({ color: 0xffc94a, metalness: 1, roughness: 0.22 }),
       rope: new THREE.MeshStandardMaterial({ color: 0x9a7a4d, roughness: 1 }),
       grip: new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.4, emissive: 0x553800, emissiveIntensity: 0.6 }),
@@ -53,6 +56,9 @@ export class Builder {
       case 'metal': geo = boxGeo(w, h, d, 2); mats = M.metal; break;
       case 'brick': geo = boxGeo(w, h, d, 3); mats = M.brick; break;
       case 'climb': geo = boxGeo(w, h, d, 4); mats = M.climb; break;
+      case 'ice': geo = boxGeo(w, h, d, 3); mats = M.ice; break;
+      case 'basalt': geo = boxGeo(w, h, d, 3); mats = M.basalt; break;
+      case 'panel': geo = boxGeo(w, h, d, 3); mats = M.panel; break;
       case 'finish': geo = boxGeo(w, h, d, 4, true); mats = [M.side, M.side, M.checker, M.stone, M.side, M.side]; break;
       case 'tramp': case 'mega':
         geo = new THREE.BoxGeometry(w, h, d);
@@ -72,7 +78,7 @@ export class Builder {
       rock.position.y = -h / 2 + 0.05;
       mesh.add(rock);
     }
-    if (this.M.neon && (style === 'island' || style === 'stone' || style === 'metal') && o.neon !== false) this.neonEdges(mesh, w, h, d);
+    if (this.M.neon && (style === 'island' || style === 'stone' || style === 'metal' || style === 'panel') && o.neon !== false) this.neonEdges(mesh, w, h, d);
     if (o.type === 'crumble') this.world.crumbles.push(new Crumble(col, this.sfx));
     if (o.type === 'tramp') {
       let t = 10;
@@ -343,6 +349,111 @@ export class Builder {
         return o;
       },
     }));
+  }
+
+  // Fires glowing fireballs along ±X across the path.
+  cannon({ x, y, z, dir = 1, range = 14, speed = 12, period = 2.0, phase = 0 }) {
+    const base = new THREE.Mesh(boxGeo(1.4, 1.6, 1.4, 2), this.M.basalt);
+    base.position.set(x, y - 0.3, z); base.castShadow = true; this.add(base);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 1.8, 12), this.M.iron);
+    barrel.rotation.z = Math.PI / 2; barrel.position.set(x + dir * 1.0, y, z); this.add(barrel);
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffd060, toneMapped: false });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xff5a10, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const balls = [];
+    for (let k = 0; k < 3; k++) {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), coreMat));
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.75, 14, 10), glowMat));
+      g.visible = false; this.add(g);
+      balls.push({ g, on: false, d: 0 });
+    }
+    let last = null;
+    const world = this.world, sfx = this.sfx;
+    world.anim.push((t, dt) => {
+      const cyc = Math.floor((t + phase) / period);
+      if (cyc !== last) {
+        last = cyc;
+        const b = balls.find((q) => !q.on);
+        if (b) {
+          b.on = true; b.d = 0; b.g.visible = true; b.g.position.set(x + dir * 1.9, y, z);
+          const P = world.player;
+          if (P && Math.abs(P.pos.z - z) < 25 && Math.abs(P.pos.x - x) < 25) sfx.cannon();
+        }
+      }
+      const P = world.player;
+      for (const b of balls) {
+        if (!b.on) continue;
+        b.g.position.x += dir * speed * dt; b.d += speed * dt;
+        const s = 1 + Math.sin(t * 20) * 0.1; b.g.scale.set(s, s, s);
+        if (P) {
+          const dx = P.pos.x - b.g.position.x, dz = P.pos.z - b.g.position.z, by = b.g.position.y;
+          if (dx * dx + dz * dz < 0.9 * 0.9 && by > P.pos.y - 0.4 && by < P.pos.y + 2.1) {
+            if (P.knock(dir, 0, 12, 6, 'obstacle')) sfx.fireHit();
+            b.on = false; b.g.visible = false;
+          }
+        }
+        if (b.d > range) { b.on = false; b.g.visible = false; }
+      }
+    });
+  }
+
+  // Lava geyser: a launch pad that throws you up and forward (push = horizontal velocity).
+  geyser({ x, y, z, w = 3, d = 3, bounce = 16, push = { x: 0, z: -9 } }) {
+    const col = this.plat({ x, y, z, w, d, h: 0.6, style: 'basalt', type: 'tramp', bounce });
+    col.push = push;
+    const vent = new THREE.Mesh(new THREE.CircleGeometry(Math.min(w, d) * 0.38, 24), new THREE.MeshBasicMaterial({ color: 0xffb040, toneMapped: false }));
+    vent.rotation.x = -Math.PI / 2; vent.position.set(x, y + 0.02, z); this.add(vent);
+    const plumeMat = new THREE.MeshBasicMaterial({ color: 0xff7a30, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const plume = new THREE.Mesh(new THREE.CylinderGeometry(Math.min(w, d) * 0.15, Math.min(w, d) * 0.4, 5, 16, 1, true), plumeMat);
+    plume.position.set(x, y + 2.5, z); this.add(plume);
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.9, 8), new THREE.MeshBasicMaterial({ color: 0xffe080, toneMapped: false }));
+    arrow.rotation.x = -Math.PI / 2 * Math.sign(-push.z || 1); arrow.position.set(x, y + 0.5, z - Math.sign(-push.z || 1) * 0.2); this.add(arrow);
+    this.world.anim.push((t) => {
+      plume.scale.set(1, 0.7 + 0.3 * Math.sin(t * 7), 1);
+      plumeMat.opacity = 0.22 + 0.12 * Math.sin(t * 11);
+      arrow.position.y = y + 0.6 + Math.sin(t * 4) * 0.15;
+    });
+    return col;
+  }
+
+  // Gusting crosswind inside a box; flags on poles show which way it's blowing.
+  wind({ x0, x1, z0, z1, y0, y1, force = 6, period = 5 }) {
+    const world = this.world;
+    const flags = [];
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0xff3b6a, side: THREE.DoubleSide, roughness: 0.8, emissive: 0x300010 });
+    for (let z = z0 - 2; z > z1; z -= 7) for (const x of [x0 - 0.6, x1 + 0.6]) {
+      this.post(x, y0, y0 + 3.2, z, false, this.M.metal, 0.06);
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.6), flagMat);
+      f.position.set(x, y0 + 2.8, z); this.add(f); flags.push({ f, x });
+    }
+    world.anim.push((t, dt) => {
+      const g = force * Math.sin((t / period) * Math.PI * 2);
+      for (const { f, x } of flags) { f.scale.x = Math.max(0.1, Math.abs(g) / force); f.position.x = x + Math.sign(g) * 0.65 * f.scale.x; f.rotation.y = Math.sin(t * 9 + x) * 0.15; }
+      const P = world.player;
+      if (P && !P.hang && P.pos.x > x0 - 1 && P.pos.x < x1 + 1 && P.pos.z < z0 && P.pos.z > z1 && P.pos.y > y0 - 2 && P.pos.y < y1) P.vel.x += g * dt;
+    });
+  }
+
+  // Platform that phases in and out. A faint ghost shows where it will reappear.
+  blink({ x, y, z, w = 4, d = 4, period = 4, on = 0.6, phase = 0 }) {
+    const col = this.plat({ x, y, z, w, d, h: 0.5, style: 'panel', neon: false });
+    col.blinkInfo = { period, on, phase };
+    const mat = this.M.panel.clone(); mat.transparent = true;
+    col.mesh.material = mat;
+    const edgeMat = new THREE.MeshBasicMaterial({ color: 0xff4dff, transparent: true, toneMapped: false });
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.08, d + 0.1), edgeMat);
+    edge.position.y = 0.26; col.mesh.add(edge);
+    this.world.anim.push((t) => {
+      const u = (((t + phase) % period) + period) % period / period;
+      const solid = u < on;
+      col.active = solid;
+      let a = solid ? 1 : 0.12;
+      if (solid && u > on - 0.18) a = Math.floor(t * 14) % 2 ? 0.35 : 1;
+      if (!solid && u > 0.92) a = 0.4;
+      mat.opacity = a; edgeMat.opacity = Math.max(0.3, a);
+      mat.depthWrite = a > 0.5;
+    });
+    return col;
   }
 
   tree(x, y, z, s = 1) { const t = makeTree(s, Math.round(x * 13 + z * 7)); t.position.set(x, y, z); this.add(t); return t; }

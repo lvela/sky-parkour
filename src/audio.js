@@ -79,6 +79,11 @@ export class SFX {
   explode() { this.tone(70, 20, 2.2, 'sine', 0.6); this.noise(2.5, 'lowpass', 2000, 50, 0.6); }
   firework() { this.noise(0.12, 'highpass', 3000, 6000, 0.12); this.noise(1.2, 'lowpass', 1500, 100, 0.18, 0.05); }
   thunder(delay = 0) { this.noise(3.2, 'lowpass', 600, 40, 0.55, delay); this.tone(60, 30, 2.5, 'sine', 0.25, delay); }
+  cannon() { this.tone(150, 50, 0.3, 'sine', 0.3); this.noise(0.35, 'lowpass', 1500, 200, 0.3); }
+  fireHit() { this.noise(0.5, 'bandpass', 900, 200, 0.4); this.tone(300, 80, 0.3, 'sawtooth', 0.08); }
+  zap() { this.noise(0.25, 'highpass', 5000, 2000, 0.3); this.tone(1800, 200, 0.25, 'square', 0.06); this.noise(1.2, 'lowpass', 500, 50, 0.4, 0.05); }
+  swat() { this.noise(0.4, 'bandpass', 250, 1200, 0.3); }
+  heal() { [300, 400, 520].forEach((f, i) => this.tone(f, f * 1.5, 0.4, 'sine', 0.12, i * 0.1)); }
   win() {
     const seq = [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36], [784, 0.52], [1047, 0.64]];
     seq.forEach(([f, d]) => { this.tone(f, f, 0.35, 'triangle', 0.16, d); this.tone(f / 2, f / 2, 0.35, 'sine', 0.1, d); });

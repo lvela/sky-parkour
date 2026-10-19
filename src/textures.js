@@ -285,6 +285,62 @@ function climb() {
   return toTex(c);
 }
 
+
+function snow() {
+  const [c, g] = canvas(512); const r = rng(101);
+  g.fillStyle = '#eef4fb'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 900, ['#dbe6f2', '#ffffff', '#cfdcec', '#e6eef7'], 4, 22, 0.45);
+  blobs(g, 512, 512, r, 300, ['#bfd2e8', '#a9c2df'], 1, 3, 0.6);
+  return toTex(c);
+}
+
+function ice() {
+  const [c, g] = canvas(512); const r = rng(102);
+  const grd = g.createLinearGradient(0, 0, 512, 512);
+  grd.addColorStop(0, '#9fd8f2'); grd.addColorStop(1, '#6fb5e0');
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 500, ['#bfe8fb', '#8ac8ea', '#e2f6ff'], 6, 30, 0.25);
+  g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineCap = 'round';
+  for (let i = 0; i < 26; i++) {
+    let x = r() * 512, y = r() * 512, a = r() * 6.28; g.lineWidth = 0.8 + r() * 1.6;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 7; k++) { a += (r() - 0.5) * 1.1; x += Math.cos(a) * 16; y += Math.sin(a) * 16; g.lineTo(x, y); }
+    g.stroke();
+  }
+  return toTex(c);
+}
+
+function basalt() {
+  const [c, g] = canvas(512); const r = rng(103);
+  g.fillStyle = '#2a2524'; g.fillRect(0, 0, 512, 512);
+  blobs(g, 512, 512, r, 1400, ['#1e1a19', '#3a3331', '#151212', '#45403d'], 3, 18, 0.45);
+  g.lineCap = 'round';
+  for (let i = 0; i < 22; i++) {
+    let x = r() * 512, y = r() * 512, a = r() * 6.28;
+    for (const [w, col] of [[7, 'rgba(255,90,10,0.25)'], [2.5, 'rgba(255,170,40,0.95)']]) {
+      g.strokeStyle = col; g.lineWidth = w;
+      let xx = x, yy = y, aa = a; const rr = rng(i * 7 + 1);
+      g.beginPath(); g.moveTo(xx, yy);
+      for (let k = 0; k < 8; k++) { aa += (rr() - 0.5) * 1.3; xx += Math.cos(aa) * 15; yy += Math.sin(aa) * 15; g.lineTo(xx, yy); }
+      g.stroke();
+    }
+  }
+  return toTex(c);
+}
+
+function panel() {
+  const [c, g] = canvas(512); const r = rng(104);
+  g.fillStyle = '#2b3140'; g.fillRect(0, 0, 512, 512);
+  for (let y = 0; y < 512; y += 128) for (let x = 0; x < 512; x += 128) {
+    const v = 40 + (r() * 14 | 0);
+    g.fillStyle = `rgb(${v},${v + 6},${v + 20})`; g.fillRect(x + 4, y + 4, 120, 120);
+    g.fillStyle = 'rgba(0,0,0,0.5)'; for (const [dx, dy] of [[12, 12], [112, 12], [12, 112], [112, 112]]) { g.beginPath(); g.arc(x + dx, y + dy, 3, 0, 7); g.fill(); }
+  }
+  g.strokeStyle = 'rgba(90,240,255,0.9)'; g.lineWidth = 3;
+  for (let i = 0; i < 6; i++) { const y = 64 + (r() * 4 | 0) * 128; const x0 = (r() * 4 | 0) * 128 + 20; g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + 88, y); g.stroke(); }
+  return toTex(c);
+}
+
 export function makeTextures() {
   return {
     grass: grass(), dirt: dirt(), stone: stone(), wood: wood(), crumble: crumble(),
@@ -292,6 +348,7 @@ export function makeTextures() {
     stripes: stripes(), metal: metal(), checker: checker(),
     sandTop: sandTop(), sandstone: sandstone(), slide: slide(), brick: brick(), slate: slate(),
     darkGrass: darkGrass(), wallrun: wallrun(), climb: climb(),
+    snow: snow(), ice: ice(), basalt: basalt(), panel: panel(),
   };
 }
 
