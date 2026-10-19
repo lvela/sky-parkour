@@ -4,6 +4,9 @@ A 3D sky parkour game that runs in the browser and in VR on Meta Quest (WebXR).
 It's built with Three.js and has no build step or assets: textures, sky, clouds and sounds are all generated in code.
 
 ## Levels
+Every tenth world from the Sky King on ends in a boss, and each boss is tougher than the last.
+Each world after level 8 adds a new kind of obstacle and is a little harder than the one before.
+
 1. **Sky Islands** (bright day): stepping stones, crumbling tiles, trampolines, wall jumps, swings, grab bars, moving platforms, zipline
 2. **Sunset Canyon** (golden hour among desert mesas): rock climbing, mega slides with jump ramps, wall slides, moving trampolines
 3. **Thunderstorm** (rain and lightning): knockout sweepers, boxing-glove punchers, wrecking hammers, bobbing wall jumps, a "breathing" shaft
@@ -11,20 +14,58 @@ It's built with Three.js and has no build step or assets: textures, sky, clouds 
 5. **Frozen Peaks** (crisp morning, falling snow): slippery ice, an icy bridge in gusting crosswinds, an ice climb, a frozen slide, thin ice
 6. **Volcano Rift** (over a sea of lava, rising embers): fireball cannons, lava geysers that launch you across gaps, molten hammers, lava elevators
 7. **Cosmic Rift** (deep space, nebula, ringed planet): **low gravity**, moon jumps, phasing platforms, orbital grab bars, a cosmic spinner
-8. **Castle of the Sky King** (twilight under a ringed planet): storm the castle, then fight the boss
+8. **BOSS: Castle of the Sky King** (twilight under a ringed planet): storm the castle, then fight the boss
+9. **Blossom Gardens** (spring morning, falling petals): **conveyor walkways** that carry you forward, sideways and backwards
+10. **Mushroom Grove** (twilight forest, fireflies): **bouncy mushroom caps**, bobbing caps and spore launchers
+11. **Desert Ruins** (blazing noon, drifting dust): **quicksand** that swallows you and **spike traps**
+12. **Coral Reef** (deep blue water, **buoyant** gravity): **bubble elevators** you ride up before they pop
+13. **Clockwork Tower** (golden hour): **rotating gears**, **pumping pistons** and the hands of a giant clock
+14. **Neon City** (rainy cyberpunk night): **laser gates** and **dash pads** across the rooftops
+15. **Haunted Graveyard** (full moon, green fog): **swinging platforms** and **cursed graves** that crumble
+16. **Candy Kingdom** (pastel sky): **click-clack blocks**: red and blue swap with every jump you make
+17. **Windmill Hills** (breezy day): **giant windmill sails** sweeping the path and **updraft fans**
+18. **BOSS: The Clockwork Colossus** (foundry at dusk): **six crystals** on piston, click-clack, bellows, fan and gear towers
+19. **Jungle Temple** (steamy jungle): **rolling logs** on the temple causeways
+20. **Crystal Caverns** (glowing violet geode): **shrinking crystal pads**
+21. **Pirate Skies** (flying galleons at sunset): **barrel cannons** that fire you between ships, rocking decks
+22. **Toxic Factory** (over an acid sea): **crushers** slamming down on the assembly line
+23. **Autumn Canopy** (golden treetops, falling leaves): **swaying and spinning balance beams**
+24. **Pinball Nebula** (neon table in deep space): **bumpers** and **flippers**
+25. **Mirror Dimension** (pale marble and glass): **portals** and glass bridges with fake panes
+26. **Meteor Shower** (starry night): **meteor strikes** on marked targets and **orbiting platforms**
+27. **Bog of Shadows** (foggy swamp): **sticky mud** and **retracting bars**
+28. **BOSS: The Crystal Titan** (frost citadel under the aurora): **seven crystals**
+29. **Inferno Forge** (burning sky, lava sea): **flame jets** you can't jump over
+30. **Heavy Planet** (alien world, **crushing gravity**): **shockwave pylons**
+31. **Celestial Temple** (golden sunset clouds): **carousel bars** riding round golden masts
+32. **Digital Grid** (inside a computer): **glitch blocks** that teleport between two spots
+33. **Hurricane Eye** (raging storm): **vortex winds** that drag you round mid-jump
+34. **Eclipse Ruins** (total solar eclipse): **paths of light** that only exist while a wave passes
+35. **Abyssal Trench** (pitch-black deep, light gravity): **jellyfish bouncers** and sweeping eels
+36. **Supernova** (exploding star): **chain-collapse paths** that fall apart behind you
+37. **Rainbow Gauntlet** (aurora night): **spinning wall-jump shafts** and a gauntlet of every obstacle
+38. **FINAL BOSS: The Void Emperor** (the edge of the universe): **eight crystals**
 
-### The boss: the Sky King
-You can't hit him directly. You smash **five crystals** with parkour:
+### The bosses
+You can't hit a boss directly. You smash its crystals with parkour, one tower at a time, and finally the gem in its crown,
+which you reach by riding the platforms orbiting it and bouncing onto its head.
+
+**The Sky King** has five crystals:
 1. **West tower:** a climb
 2. **North tower:** trampolines
 3. **East tower:** a moving wall-jump shaft
 4. **Crumbling spiral:** steps that fall away as you climb them
 5. **The gem in his crown:** ride the platforms orbiting him and bounce onto his head
 
-He gets angrier after every crystal. He slams shockwave rings (doubled later) and hurls boulder volleys.
-He also swings spinning flail arms and calls lightning that follows you even onto the towers.
-When you're up high near him he swats at you; jump when his fist glows red.
-You have three hearts. **If he knocks you out, he regains a crystal.**
+Every boss gets angrier after every crystal. They slam shockwave rings and hurl boulder volleys.
+They swing spinning flail arms and call lightning that follows you even onto the towers.
+When you're up high near them they swat at you; jump when the fist glows red.
+You have three hearts. **If a boss knocks you out, it regains a crystal.**
+
+Each later boss has more crystals, attacks faster, and adds new attacks:
+- **The Clockwork Colossus** (6 crystals): flails from the start and **homing wisps** that chase you.
+- **The Crystal Titan** (7 crystals): lightning from the start, extra boulders and **meteor showers** across the whole arena.
+- **The Void Emperor** (8 crystals): up to three flails, triple shockwaves, and a **vortex inhale** that drags you toward him. Run away from him while he inhales!
 
 Fall and you fall to your death, then respawn at the last checkpoint. Best times are saved in your browser.
 
@@ -59,6 +100,6 @@ Open the GitHub Pages URL in the **Meta Quest Browser** and press **ENTER VR**. 
 - `src/scenery.js`: floating islands, the animated cloud sea below and billboard cumulus clouds
 - `src/levels/`: one file per level (sky, lighting, theme and layout)
 - `src/builder.js`: level toolkit (platforms, slides, climbing walls, sweepers, punchers, hammers, swings, zipline, finish)
-- `src/world.js`: colliders and grabbables · `src/boss.js`: the Sky King · `src/effects.js`: rain, lightning, aurora, birds, fireworks
+- `src/world.js`: colliders and grabbables · `src/boss.js`: the bosses · `src/obstacles.js`: the obstacles added in worlds 9–38 · `src/levels/arena.js`: boss arena helpers · `src/effects.js`: rain, lightning, aurora, birds, fireworks
 - `src/player.js`: the character controller and physics
 - `src/xr.js`: Quest controllers · `src/input.js`: keyboard and mouse · `src/hud.js`: HUD · `src/audio.js`: synthesized sound

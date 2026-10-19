@@ -13,8 +13,9 @@ export class Hud {
       cross: document.getElementById('crosshair'), hint: document.getElementById('hint'),
       banner: document.getElementById('banner'), big: document.getElementById('bannerBig'), small: document.getElementById('bannerSmall'),
       fade: document.getElementById('fade'), bossWrap: document.getElementById('boss'), bossFill: document.getElementById('bossFill'),
+      bossName: document.getElementById('bossName'),
     };
-    this.bossOn = false; this.bossFrac = 1;
+    this.bossOn = false; this.bossFrac = 1; this.bossName = 'THE SKY KING';
     this.state = { time: '0:00.00', stats: '', hint: '', big: '', small: '', color: '#ffffff' };
     this.bannerT = 0; this.bannerSticky = false; this.xr = false; this.dirty = true; this.redrawT = 0;
 
@@ -33,8 +34,9 @@ export class Hud {
   setXR(on) { this.xr = on; this.panel.visible = on; this.dirty = true; this.el.cross.classList.toggle('hidden', on); }
   show(on) { this.el.hud.classList.toggle('hidden', !on); this.el.cross.classList.toggle('hidden', !on || this.xr); }
 
-  boss(on, frac = this.bossFrac) {
-    this.bossOn = on; this.bossFrac = frac;
+  boss(on, frac = this.bossFrac, name = this.bossName) {
+    this.bossOn = on; this.bossFrac = frac; this.bossName = name;
+    this.el.bossName.textContent = name;
     this.el.bossWrap.classList.toggle('hidden', !on);
     this.el.bossFill.style.width = `${Math.max(0, frac) * 100}%`;
     this.dirty = true;
@@ -91,7 +93,7 @@ export class Hud {
     if (this.bossOn) {
       g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(262, 70, 500, 26);
       g.fillStyle = '#ff2a5a'; g.fillRect(266, 74, 492 * Math.max(0, this.bossFrac), 18);
-      g.fillStyle = '#ffffff'; g.font = '800 22px system-ui, sans-serif'; g.fillText('THE SKY KING', 512, 112);
+      g.fillStyle = '#ffffff'; g.font = '800 22px system-ui, sans-serif'; g.fillText(this.bossName, 512, 112);
     }
     if (s.hint) { g.fillStyle = '#ffcf4a'; fit(s.hint, 800, 32, 470); }
     this.tex.needsUpdate = true;

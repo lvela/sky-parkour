@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { bakeSky } from './sky.js';
 import { createCloudSea, createCloudBillboards, createIslands, ROCK_PALETTES } from './scenery.js';
-import { createRain, createLightning, createAurora, createBirds, createFireworks, createSnow, createEmbers } from './effects.js';
+import { createRain, createLightning, createAurora, createBirds, createFireworks, createSnow, createEmbers, createDrift } from './effects.js';
 import { makeTextures } from './textures.js';
 import { World } from './world.js';
 import { Builder } from './builder.js';
+import './obstacles.js';
 import { LEVELS } from './levels/index.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
@@ -70,6 +71,7 @@ let xrFresh = true;
 let levelIndex = 0, L = null, levelGroup = null, sky = null, seaMat = null, fireworks = null;
 
 const isBoss = () => !!world.boss;
+const palette = (p) => (typeof p === 'string' ? ROCK_PALETTES[p] : p); // a named palette or an inline one
 function cpTotal() { return world.checkpoints.length - 1; }
 function updateStats() {
   let s = `☠ ${deaths}   ⚑ ${cpIndex}/${cpTotal()}`;
@@ -104,19 +106,20 @@ function loadLevel(i) {
   scene.add(levelGroup);
   world = new World(sfx);
   world.killY = L.killY;
-  const theme = { ...L.theme, palette: ROCK_PALETTES[L.theme.palette] };
+  const theme = { ...L.theme, palette: palette(L.theme.palette) };
   const b = new Builder(levelGroup, world, tex, sfx, theme);
   L.build(b);
   const S = L.scenery;
   seaMat = S.sea === false ? null : createCloudSea(levelGroup, sky, S.sea);
   if (S.clouds !== false) createCloudBillboards(levelGroup, sky, S.clouds);
-  createIslands(levelGroup, { ...S.islands, palette: ROCK_PALETTES[S.islands.palette] });
+  createIslands(levelGroup, { ...S.islands, palette: palette(S.islands.palette) });
   if (S.rain) world.anim.push(createRain(levelGroup, world));
   if (S.lightning) world.anim.push(createLightning(levelGroup, sfx, flashLight));
   if (S.aurora) world.anim.push(createAurora(levelGroup));
   if (S.snow) world.anim.push(createSnow(levelGroup, world));
   if (S.embers) world.anim.push(createEmbers(levelGroup, world));
-  if (S.birds) world.anim.push(createBirds(levelGroup, new THREE.Vector3(0, 8, -150), 26, L.id === 'canyon' ? 0x2a1a14 : 0x222222));
+  for (const d of S.drift || []) world.anim.push(createDrift(levelGroup, world, d));
+  if (S.birds) world.anim.push(createBirds(levelGroup, new THREE.Vector3(0, 8, -150), 26, S.birdColor ?? (L.id === 'canyon' ? 0x2a1a14 : 0x222222)));
   fireworks = createFireworks(levelGroup, sfx);
   world.anim.push(fireworks.update);
   world.player = player;
@@ -164,7 +167,7 @@ player.onKnock = () => {
   if (!isBoss() || world.boss.state !== 'fight' || state !== 'play') return;
   hearts--; updateStats();
   if (renderer.xr.isPresenting) { xr.pulse(0, 1, 120); xr.pulse(1, 1, 120); }
-  if (hearts <= 0) die('KNOCKED OUT!', 'The Sky King wins this round… try again!');
+  if (hearts <= 0) die('KNOCKED OUT!', `${world.boss.name} wins this round… try again!`);
 };
 
 function die(big, small) {
@@ -188,7 +191,7 @@ function win() {
   const last = levelIndex === LEVELS.length - 1;
   const xrMode = renderer.xr.isPresenting;
   const nextTxt = last ? (xrMode ? 'A: back to level 1' : 'ENTER: back to level 1') : (xrMode ? 'A: next level' : 'ENTER: next level');
-  const title = isBoss() ? 'YOU DEFEATED THE SKY KING!' : 'LEVEL COMPLETE!';
+  const title = isBoss() ? `YOU DEFEATED ${world.boss.name}!` : 'LEVEL COMPLETE!';
   hud.banner(title, `${fmtTime(runTime)}${record ? ' · NEW BEST' : ''} · ☠ ${deaths} · ${nextTxt} · ${xrMode ? 'B' : 'R'}: replay`, '#ffcf4a', 0);
 }
 
@@ -224,7 +227,7 @@ function renderMenu() {
 
 function setMenuMode() {
   const inRun = state !== 'menu';
-  ui.sub.textContent = inRun ? `Paused — ${L.name}` : `Thousands of feet up. ${LEVELS.length} worlds. One Sky King.`;
+  ui.sub.textContent = inRun ? `Paused — ${L.name}` : `Thousands of feet up. ${LEVELS.length} worlds. ${LEVELS.filter((lv) => lv.boss).length} bosses.`;
   ui.play.textContent = inRun ? 'RESUME' : 'PLAY';
   ui.restart.classList.toggle('hidden', !inRun);
 }
@@ -312,17 +315,17 @@ function placeRig(inXR) {
 function handleEvents() {
   for (const e of world.events) {
     if (e.type === 'shake') shake = Math.max(shake, e.amount);
-    else if (e.type === 'bossWake') { hud.boss(true, world.boss.hp / world.boss.maxHp); hud.banner('THE SKY KING AWAKENS!', 'Smash the glowing crystals on his towers!', '#ff5a8a', 3); updateStats(); }
+    else if (e.type === 'bossWake') { hud.boss(true, world.boss.hp / world.boss.maxHp, world.boss.name); hud.banner(`${world.boss.name} AWAKENS!`, `Smash the ${world.boss.maxHp} glowing crystals with parkour!`, '#ff5a8a', 3); updateStats(); }
     else if (e.type === 'bossHit') {
       hud.boss(true, e.hp / e.max);
       if (e.hp > 0) hud.banner('CRYSTAL SMASHED!', `${e.hp} crystal${e.hp > 1 ? 's' : ''} left — he's getting angrier…`, '#7af7ff', 3);
       fireworks.burst(player.pos, 2, 6);
     } else if (e.type === 'bossHeal') {
       hud.boss(true, e.hp / e.max);
-      hud.banner('THE SKY KING REGAINS A CRYSTAL!', 'Knock-outs heal him. Stay on your feet!', '#ff5a8a', 3);
+      hud.banner(`${world.boss.name} REGAINS A CRYSTAL!`, 'Knock-outs heal him. Stay on your feet!', '#ff5a8a', 3);
     } else if (e.type === 'bossDefeated') {
       hud.boss(false);
-      hud.banner('THE SKY KING FALLS!', '', '#ffcf4a', 3);
+      hud.banner(`${world.boss.name} FALLS!`, '', '#ffcf4a', 3);
       fireworks.burst(world.boss.c, 14, 40);
       world.finishPos.copy(world.boss.c);
       winT = 3.2;
@@ -395,7 +398,8 @@ renderer.setAnimationLoop(() => {
     if (state === 'play' && player.pos.y < world.killY) die('YOU FELL TO YOUR DEATH', 'Respawning at checkpoint…');
 
     if (state === 'play') runTime += dt;
-    const bossHint = isBoss() && world.boss.state !== 'dead' && world.boss.state !== 'dying' && player.pos.z < -127 ? world.boss.hint : '';
+    const B = world.boss;
+    const bossHint = B && B.state !== 'dead' && B.state !== 'dying' && Math.abs(player.pos.z - B.c.z) < 24 && Math.abs(player.pos.x - B.c.x) < 24 ? B.hint : '';
     hud.set('hint', player.hang
       ? (player.hang.g.kind === 'hold'
         ? (inXR ? 'Pull down to climb · A/X to reach up' : 'SPACE reach up · A/D + SPACE sideways · S + SPACE kick off')
@@ -407,7 +411,7 @@ renderer.setAnimationLoop(() => {
     if (inXR) xr.poll(dt);
     if (deadT > 2.0) {
       respawn(); state = 'play'; fadeIn = 1; hud.clearBanner();
-      if (isBoss()) hud.boss(world.boss.state !== 'dead', world.boss.hp / world.boss.maxHp);
+      if (isBoss()) hud.boss(world.boss.state !== 'dead', world.boss.hp / world.boss.maxHp, world.boss.name);
       if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; prevHeadOff.copy(headOff); }
     }
     sfx.setWind(0, false);

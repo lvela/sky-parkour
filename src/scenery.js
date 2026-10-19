@@ -202,7 +202,11 @@ export function createCloudSea(scene, sky, opts = {}) {
     uniforms: {
       noiseTex: { value: tex }, bgMap: { value: sky.background },
       sunDir: { value: sky.sunDir }, time: { value: 0 },
-      lava: { value: opts.lava ? 1 : 0 }, white: { value: sky.white }, tint: { value: sky.tint }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
+      lava: { value: opts.lava || opts.liquid ? 1 : 0 },
+      hotCol: { value: new THREE.Color(...(opts.liquid?.hot || [4.0, 1.1, 0.15])) },
+      veinCol: { value: new THREE.Color(...(opts.liquid?.vein || [1.2, 0.25, 0.03])) },
+      crustCol: { value: new THREE.Color(...(opts.liquid?.crust || [0.05, 0.025, 0.02])) },
+      white: { value: sky.white }, tint: { value: sky.tint }, zenith: { value: sky.zenith }, sunCol: { value: sky.sunCol }, avgHorizon: { value: sky.avgHorizon },
     },
     vertexShader: /* glsl */`
       varying vec3 vWorld;
@@ -211,6 +215,7 @@ export function createCloudSea(scene, sky, opts = {}) {
       uniform sampler2D noiseTex; uniform samplerCube bgMap;
       uniform vec3 sunDir; uniform float time; uniform float lava;
       uniform vec3 white; uniform vec3 tint; uniform vec3 zenith; uniform vec3 sunCol; uniform vec3 avgHorizon;
+      uniform vec3 hotCol, veinCol, crustCol;
       varying vec3 vWorld;
       float field(vec2 uv) {
         float a = texture2D(noiseTex, uv * 0.0009 + vec2(time * 0.0012, 0.0)).r;
@@ -232,11 +237,10 @@ export function createCloudSea(scene, sky, opts = {}) {
         vec3 gap = mix(zenith, avgHorizon, 0.3) * 0.42;
         col = mix(gap, col, dens);
         if (lava > 0.5) {
-          // molten sea: dark crust broken by glowing, flowing veins
+          // molten / glowing sea (lava, acid, plasma…): dark crust broken by glowing, flowing veins
           float veins = smoothstep(0.42, 0.62, n) * (1.0 - smoothstep(0.62, 0.8, n));
           float hot = pow(1.0 - abs(n - 0.52) * 3.5, 3.0);
-          vec3 crust = vec3(0.05, 0.025, 0.02);
-          col = crust + vec3(4.0, 1.1, 0.15) * max(hot, 0.0) * (0.7 + 0.3 * sin(time * 1.5 + n * 20.0)) + vec3(1.2, 0.25, 0.03) * veins;
+          col = crustCol + hotCol * max(hot, 0.0) * (0.7 + 0.3 * sin(time * 1.5 + n * 20.0)) + veinCol * veins;
         }
         vec3 far = textureCube(bgMap, vd).rgb;
         float fog = 1.0 - exp(-dist * 0.00028);

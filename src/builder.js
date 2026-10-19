@@ -1,7 +1,7 @@
 // Level-building toolkit. Every helper adds meshes to the level group and physics to the World.
 // Travel direction is -Z. Platforms are positioned by their TOP surface height.
 import * as THREE from 'three';
-import { boxGeo, signTexture, rng } from './textures.js';
+import { boxGeo, signTexture, rng, themeTex } from './textures.js';
 import { makeRock, makeTree } from './scenery.js';
 import { Collider, Swing, Bar, Zip, Hold, Crumble } from './world.js';
 
@@ -9,12 +9,14 @@ const V3 = THREE.Vector3;
 
 export class Builder {
   // theme: { top, side, stone, palette, neon (hex|null), accent }
+  // top/side/stone name a shared texture, or are a themeTex() spec for a world-specific one.
   constructor(group, world, tex, sfx, theme) {
     this.g = group; this.world = world; this.tex = tex; this.sfx = sfx; this.theme = theme;
     this.rockSeed = 1;
     const std = (map, o = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.9, metalness: 0, ...o });
+    const T = (k, d) => (theme[k] && typeof theme[k] === 'object' ? themeTex(theme[k]) : tex[theme[k] || d]);
     this.M = {
-      top: std(tex[theme.top || 'grass']), side: std(tex[theme.side || 'dirt']), stone: std(tex[theme.stone || 'stone']),
+      top: std(T('top', 'grass')), side: std(T('side', 'dirt')), stone: std(T('stone', 'stone')),
       wood: std(tex.wood, { roughness: 0.8 }), crumble: std(tex.crumble), wall: std(tex.wall, { roughness: 0.75 }),
       wallrun: std(tex.wallrun, { roughness: 0.5, emissive: 0x0a2a80, emissiveIntensity: 0.4 }),
       trampTop: std(tex.trampTop, { roughness: 0.55 }), megaTop: std(tex.megaTop, { roughness: 0.55 }),
@@ -59,6 +61,8 @@ export class Builder {
       case 'ice': geo = boxGeo(w, h, d, 3); mats = M.ice; break;
       case 'basalt': geo = boxGeo(w, h, d, 3); mats = M.basalt; break;
       case 'panel': geo = boxGeo(w, h, d, 3); mats = M.panel; break;
+      case 'top': geo = boxGeo(w, h, d, 3); mats = M.top; break;
+      case 'trim': geo = boxGeo(w, h, d, 3); mats = M.stone; break;
       case 'finish': geo = boxGeo(w, h, d, 4, true); mats = [M.side, M.side, M.checker, M.stone, M.side, M.side]; break;
       case 'tramp': case 'mega':
         geo = new THREE.BoxGeometry(w, h, d);
@@ -66,12 +70,13 @@ export class Builder {
         break;
       default: geo = boxGeo(w, h, d, 4); mats = M.stone;
     }
+    if (o.mat) mats = o.mat;
     const mesh = new THREE.Mesh(geo, mats);
     mesh.position.set(x, y - h / 2, z);
     mesh.rotation.y = o.yaw || 0;
     mesh.castShadow = o.shadow !== false; mesh.receiveShadow = true;
     this.add(mesh);
-    const col = new Collider(mesh, w / 2, h / 2, d / 2, { type: o.type, bounce: o.bounce, motion: o.motion });
+    const col = new Collider(mesh, w / 2, h / 2, d / 2, { type: o.type, bounce: o.bounce, motion: o.motion, conveyor: o.conveyor, mud: o.mud, knockPower: o.knockPower });
     this.world.colliders.push(col);
     if (o.rock) {
       const rock = makeRock(w / 2 * 0.92, d / 2 * 0.92, o.rockDepth ?? (w + d) * 0.42, this.rockSeed++, false, this.theme.palette);
@@ -79,7 +84,7 @@ export class Builder {
       mesh.add(rock);
     }
     if (this.M.neon && (style === 'island' || style === 'stone' || style === 'metal' || style === 'panel') && o.neon !== false) this.neonEdges(mesh, w, h, d);
-    if (o.type === 'crumble') this.world.crumbles.push(new Crumble(col, this.sfx));
+    if (o.type === 'crumble') this.world.crumbles.push(new Crumble(col, this.sfx, o.crumbleDelay));
     if (o.type === 'tramp') {
       let t = 10;
       col.onBounce = () => { t = 0; };

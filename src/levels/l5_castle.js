@@ -78,7 +78,7 @@ export default {
     parapet(cx - 19.6, cz, 0.8, 40); parapet(cx + 19.6, cz, 0.8, 40); parapet(cx, cz - 19.6, 40, 0.8);
     parapet(cx - 11.75, cz + 19.6, 16.5, 0.8); parapet(cx + 11.75, cz + 19.6, 16.5, 0.8);
     b.checkpoint(cx, y0, cz + 16.5);
-    b.world.boss = new Boss(b, ARENA);
+    b.world.boss = new Boss(b, { ...ARENA, name: 'THE SKY KING', power: 1 });
 
     this.decorate(b);
   },

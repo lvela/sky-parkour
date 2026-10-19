@@ -195,8 +195,9 @@ export function createFireworks(group, sfx) {
   };
 }
 
-// Particles that wrap around the camera: falling snow or rising embers (GPU-animated points).
-function createDrift(group, world, { count, color, size, fall, sway, additive }) {
+// Particles that wrap around the camera: snow, embers, petals, spores, bubbles… (GPU-animated points).
+// fall < 0 rises.
+export function createDrift(group, world, { count = 1200, color = 0xffffff, size = 0.1, fall = 1, sway = 1, additive = false }) {
   const r = rng(fall > 0 ? 41 : 43);
   const pos = new Float32Array(count * 3), seed = new Float32Array(count);
   for (let i = 0; i < count; i++) { pos.set([r() * 70, r() * 45, r() * 70], i * 3); seed[i] = r() * 6.28; }

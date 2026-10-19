@@ -6,6 +6,7 @@ const _ab = new V3();
 
 // Yaw-rotated box. Types: solid | wall | wallrun | tramp | crumble | knock | ramp
 // Ramps: `slope` = rise per metre along local +Z; pos.y is the surface height at the centre.
+// Surface modifiers: `conveyor` {x, z} carries you along; `mud` slows running and jumping.
 export class Collider {
   constructor(obj, hx, hy, hz, opts = {}) {
     this.mesh = obj;
@@ -18,6 +19,8 @@ export class Collider {
     this.bounce = opts.bounce || 0;
     this.slope = opts.slope || 0;
     this.knockPower = opts.knockPower || 12;
+    this.conveyor = opts.conveyor || null;
+    this.mud = !!opts.mud;
     this.active = true;
     this.onStand = null; this.onBounce = null;
     this.bxz = Math.hypot(hx, hz);
@@ -140,15 +143,15 @@ export class Zip extends Grabbable {
 }
 
 export class Crumble {
-  constructor(col, sfx) {
-    this.col = col; this.mesh = col.mesh; this.sfx = sfx;
+  constructor(col, sfx, delay = 0.6) {
+    this.col = col; this.mesh = col.mesh; this.sfx = sfx; this.delay = delay;
     this.base = this.mesh.position.clone();
     this.state = 'idle'; this.timer = 0; this.vy = 0;
     col.onStand = () => this.trigger();
   }
   trigger() {
     if (this.state !== 'idle') return;
-    this.state = 'shake'; this.timer = 0.6; this.sfx.crack();
+    this.state = 'shake'; this.timer = this.delay; this.sfx.crack();
   }
   update(dt) {
     if (this.state === 'shake') {

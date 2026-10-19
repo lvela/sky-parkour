@@ -83,6 +83,8 @@ export class SFX {
   fireHit() { this.noise(0.5, 'bandpass', 900, 200, 0.4); this.tone(300, 80, 0.3, 'sawtooth', 0.08); }
   zap() { this.noise(0.25, 'highpass', 5000, 2000, 0.3); this.tone(1800, 200, 0.25, 'square', 0.06); this.noise(1.2, 'lowpass', 500, 50, 0.4, 0.05); }
   swat() { this.noise(0.4, 'bandpass', 250, 1200, 0.3); }
+  warp() { this.tone(200, 1400, 0.35, 'sine', 0.12); this.tone(1400, 300, 0.3, 'triangle', 0.06, 0.15); }
+  pop() { this.tone(900, 1800, 0.08, 'sine', 0.1); }
   heal() { [300, 400, 520].forEach((f, i) => this.tone(f, f * 1.5, 0.4, 'sine', 0.12, i * 0.1)); }
   win() {
     const seq = [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36], [784, 0.52], [1047, 0.64]];

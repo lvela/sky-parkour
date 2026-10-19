@@ -23,6 +23,8 @@ export class Player {
     this.yawDelta = 0; this.grabInRange = false; this.landV = 0;
     this.stun = 0; this.invuln = 0; this.onKnock = null;
     this.gScale = 1;
+    this.jumps = 0; // counts every jump (click-clack blocks flip on it)
+    this.launchT = 0; // after a launcher (geyser, dash pad…) air control is weak so you fly where it aims
   }
 
   get sliding() { return this.onGround && this.ground && this.ground.type === 'ramp'; }
@@ -32,7 +34,7 @@ export class Player {
     if (this.hang) this.hang.g.onRelease();
     this.hang = null; this.ground = null; this.onGround = false;
     this.block.clear(); this.jumpBuf = 0; this.wallTime = 0; this.stun = 0; this.invuln = 0;
-    this.wallRun = false;
+    this.wallRun = false; this.jumps = 0; this.launchT = 0;
   }
 
   // Knock-back from obstacles or the boss. dir is horizontal (normalised inside).
@@ -176,6 +178,7 @@ export class Player {
       }
       p.x = g.pos.x + rx; p.z = g.pos.z + rz; p.y += g.pos.y - g.prevPos.y;
     }
+    if (this.onGround && g && g.conveyor && g.active) { p.x += g.conveyor.x * dt; p.z += g.conveyor.z * dt; }
 
     // desired movement (forward = -Z at yaw 0)
     const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw);
@@ -196,12 +199,13 @@ export class Player {
       const sp = Math.hypot(v.x, v.z);
       if (sp > SLIDE_MAX) { v.x *= SLIDE_MAX / sp; v.z *= SLIDE_MAX / sp; }
     } else if (this.onGround) {
-      const tx = wx * RUN, tz = wz * RUN;
+      const run = g && g.mud ? RUN * 0.45 : RUN; // mud bogs you down
+      const tx = wx * run, tz = wz * run;
       const ax = tx - v.x, az = tz - v.z, al = Math.hypot(ax, az), maxA = (g && g.type === 'ice' ? 9 : 70) * dt; // ice is slippery
       if (al > maxA) { v.x += ax / al * maxA; v.z += az / al * maxA; } else { v.x = tx; v.z = tz; }
     } else if (wl > 0.01) {
       // air steering: turns momentum toward the stick without bleeding launch speed
-      const accel = this.stun > 0 ? 2 : this.wallLock > 0 ? 4 : 20;
+      const accel = this.stun > 0 ? 2 : this.launchT > 0 ? 1.5 : this.wallLock > 0 ? 4 : 20;
       const dx = wx / wl, dz = wz / wl;
       const sp = Math.hypot(v.x, v.z);
       const along = sp > 0.01 ? (v.x * dx + v.z * dz) / sp : 1;
@@ -214,18 +218,20 @@ export class Player {
     this.coyote = this.onGround ? 0.12 : Math.max(0, this.coyote - dt);
     this.wallTime = this.onGround ? 0 : Math.max(0, this.wallTime - dt);
     this.wallLock = Math.max(0, this.wallLock - dt);
+    this.launchT = this.onGround ? 0 : Math.max(0, this.launchT - dt);
     let jumped = false;
     if (this.jumpBuf > 0 && this.stun <= 0.3) {
       if (this.coyote > 0) {
-        v.y = JUMP_V + (this.sliding ? Math.max(0, v.y) : 0);
+        v.y = (g && g.mud ? JUMP_V * 0.72 : JUMP_V) + (this.sliding ? Math.max(0, v.y) : 0);
         if (g && g.kinematic) { v.x += g.vel.x; v.z += g.vel.z; v.y += Math.max(0, g.vel.y); }
-        this.coyote = 0; this.jumpBuf = 0; this.onGround = false; this.ground = null; jumped = true;
+        if (g && g.conveyor) { v.x += g.conveyor.x; v.z += g.conveyor.z; }
+        this.coyote = 0; this.jumpBuf = 0; this.onGround = false; this.ground = null; jumped = true; this.jumps++;
         this.sfx.jump();
       } else if (this.wallTime > 0) {
         const n = this.wallN, vn = v.x * n.x + v.z * n.z;
         v.x += n.x * (WALL_PUSH - vn); v.z += n.z * (WALL_PUSH - vn);
         v.y = WALL_UP;
-        this.wallTime = 0; this.wallLock = 0.28; this.jumpBuf = 0; this.wallRun = false; jumped = true;
+        this.wallTime = 0; this.wallLock = 0.28; this.jumpBuf = 0; this.wallRun = false; jumped = true; this.jumps++;
         this.sfx.wallJump();
       }
     }
@@ -321,9 +327,11 @@ export class Player {
     const step = c.type === 'tramp' && v.y < 0 ? 0.75 : STEP; // clipping a trampoline's rim still bounces you
     if (v.y <= 1.0 && (wasAbove || (penUp <= step && v.y <= 0.5))) {
       p.y += penUp;
+      if (c.spiky) { this.knock(dx || 0.3, dz || 0.3, c.knockPower * 0.5, 10, 'obstacle'); return true; } // spikes / flames hurt from above too
       if (c.type === 'tramp') {
-        v.y = c.bounce; this.coyote = 0; this.jumpBuf = 0;
-        if (c.push) { v.x = c.push.x; v.z = c.push.z; }
+        p.y += 1e-4; // clear the surface so the next pass doesn't shove us off the rim
+        v.y = c.bounce; this.coyote = 0; this.jumpBuf = 0; this.onGround = false; this._ground = null;
+        if (c.push) { v.x = c.push.x; v.z = c.push.z; this.launchT = 1.7 * c.bounce / (G * this.gScale); } // launchers keep their aim
         if (c.onBounce) c.onBounce();
         this.sfx.bounce();
       } else {

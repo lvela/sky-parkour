@@ -341,6 +341,100 @@ function panel() {
   return toTex(c);
 }
 
+// Parametric textures so every world can have its own ground. spec: {
+//   p: 'speckle' | 'tiles' | 'planks' | 'hex' | 'stripes' | 'grid' | 'cracks',
+//   a: base colour, b: [detail colours], line: line/grout colour, glow: true (bright lines),
+//   lip: colour of a grassy-style band along the top edge (for island sides), seed }
+export function themeTex(spec) {
+  const [c, g] = canvas(512); const r = rng(spec.seed ?? 7);
+  const b = spec.b || ['#ffffff', '#000000'];
+  const line = spec.line || 'rgba(0,0,0,0.55)';
+  g.fillStyle = spec.a; g.fillRect(0, 0, 512, 512);
+  switch (spec.p) {
+    case 'tiles': {
+      const n = spec.n ?? 4, s = 512 / n;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        g.globalAlpha = 0.5; g.fillStyle = b[(r() * b.length) | 0];
+        g.fillRect(x * s + 4, y * s + 4, s - 8, s - 8);
+      }
+      g.globalAlpha = 1;
+      blobs(g, 512, 512, r, 500, b, 2, 9, 0.12);
+      g.fillStyle = line;
+      for (let k = 0; k <= n; k++) { g.fillRect(k * s - 3, 0, 6, 512); g.fillRect(0, k * s - 3, 512, 6); }
+      break;
+    }
+    case 'planks': {
+      const n = spec.n ?? 8, s = 512 / n;
+      for (let i = 0; i < n; i++) {
+        g.fillStyle = b[i % b.length]; g.fillRect(0, i * s, 512, s);
+        for (let k = 0; k < 18; k++) {
+          g.strokeStyle = r() > 0.5 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.12)'; g.lineWidth = 1 + r();
+          const y0 = i * s + r() * s; g.beginPath();
+          for (let x = 0; x <= 512; x += 16) g.lineTo(x, y0 + Math.sin(x * 0.02 + k) * 2);
+          g.stroke();
+        }
+        g.fillStyle = line; g.fillRect(0, i * s, 512, 3);
+      }
+      break;
+    }
+    case 'hex': {
+      blobs(g, 512, 512, r, 300, b, 4, 18, 0.25);
+      const R = spec.size ?? 32, h = R * Math.sqrt(3);
+      g.strokeStyle = line; g.lineWidth = spec.glow ? 3 : 4;
+      if (spec.glow) { g.shadowColor = line; g.shadowBlur = 8; }
+      for (let row = -1; row < 512 / h + 1; row++) for (let col = -1; col < 512 / (R * 1.5) + 1; col++) {
+        const cx = col * R * 1.5, cy = row * h + (col % 2 ? h / 2 : 0);
+        g.beginPath();
+        for (let k = 0; k <= 6; k++) { const a = k * Math.PI / 3; g.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); }
+        g.stroke();
+      }
+      g.shadowBlur = 0;
+      break;
+    }
+    case 'stripes': {
+      g.fillStyle = b[0];
+      for (let k = -512; k < 1024; k += 128) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 64, 0); g.lineTo(k + 64 + 512, 512); g.lineTo(k + 512, 512); g.fill(); }
+      blobs(g, 512, 512, r, 200, ['#ffffff'], 2, 6, 0.15);
+      break;
+    }
+    case 'grid': {
+      blobs(g, 512, 512, r, 200, b, 6, 30, 0.12);
+      g.strokeStyle = line; g.lineWidth = 3; g.shadowColor = line; g.shadowBlur = 10;
+      const n = spec.n ?? 8, s = 512 / n;
+      for (let k = 0; k <= n; k++) {
+        g.beginPath(); g.moveTo(k * s, 0); g.lineTo(k * s, 512); g.stroke();
+        g.beginPath(); g.moveTo(0, k * s); g.lineTo(512, k * s); g.stroke();
+      }
+      g.shadowBlur = 0;
+      break;
+    }
+    case 'cracks': {
+      blobs(g, 512, 512, r, 900, b, 3, 16, 0.3);
+      g.strokeStyle = line; g.lineWidth = 3; g.lineCap = 'round';
+      if (spec.glow) { g.shadowColor = line; g.shadowBlur = 10; }
+      for (let i = 0; i < 26; i++) {
+        let x = r() * 512, y = r() * 512, a = r() * 6.28;
+        g.beginPath(); g.moveTo(x, y);
+        for (let k = 0; k < 8; k++) { a += (r() - 0.5) * 1.4; x += Math.cos(a) * 18; y += Math.sin(a) * 18; g.lineTo(x, y); }
+        g.stroke();
+      }
+      g.shadowBlur = 0;
+      break;
+    }
+    default: // speckle
+      blobs(g, 512, 512, r, 1400, b, 2, 14, 0.4);
+      blobs(g, 512, 512, r, 120, b, 10, 34, 0.15);
+  }
+  if (spec.lip) {
+    g.fillStyle = spec.lip; g.fillRect(0, 0, 512, 56);
+    for (let x = 0; x < 512; x += 3) {
+      g.strokeStyle = spec.lip; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (r() - 0.5) * 6, 50 + r() * 40); g.stroke();
+    }
+  }
+  return toTex(c);
+}
+
 export function makeTextures() {
   return {
     grass: grass(), dirt: dirt(), stone: stone(), wood: wood(), crumble: crumble(),
