@@ -8,13 +8,23 @@ It's built with Three.js and has no build step or assets: textures, sky, clouds 
 2. **Sunset Canyon** (golden hour among desert mesas): rock climbing, mega slides with jump ramps, wall slides, moving trampolines
 3. **Thunderstorm** (rain and lightning): knockout sweepers, boxing-glove punchers, wrecking hammers, bobbing wall jumps, a "breathing" shaft
 4. **Aurora Night** (Milky Way, giant moon, animated aurora, glowing crystals): neon slide, night climb, shifting walls, wall slides, hammers, zipline
-5. **Castle of the Sky King** (twilight under a ringed planet): storm the castle, then fight the boss
+5. **Frozen Peaks** (crisp morning, falling snow): slippery ice, an icy bridge in gusting crosswinds, an ice climb, a frozen slide, thin ice
+6. **Volcano Rift** (over a sea of lava, rising embers): fireball cannons, lava geysers that launch you across gaps, molten hammers, lava elevators
+7. **Cosmic Rift** (deep space, nebula, ringed planet): **low gravity**, moon jumps, phasing platforms, orbital grab bars, a cosmic spinner
+8. **Castle of the Sky King** (twilight under a ringed planet): storm the castle, then fight the boss
 
 ### The boss: the Sky King
-You can't hit him directly. Parkour up each of his three towers and smash the crystal on top:
-the **west tower** is a climb, the **north tower** is trampolines, and the **east tower** is a moving wall-jump shaft.
-While you do that, he slams out shockwave rings (jump them), hurls boulders at red target circles, and after the first crystal
-swings spinning flail arms around the arena. Three hits and you're knocked out, back at the arena entrance; the crystals you've already smashed stay smashed.
+You can't hit him directly. You smash **five crystals** with parkour:
+1. **West tower:** a climb
+2. **North tower:** trampolines
+3. **East tower:** a moving wall-jump shaft
+4. **Crumbling spiral:** steps that fall away as you climb them
+5. **The gem in his crown:** ride the platforms orbiting him and bounce onto his head
+
+He gets angrier after every crystal. He slams shockwave rings (doubled later) and hurls boulder volleys.
+He also swings spinning flail arms and calls lightning that follows you even onto the towers.
+When you're up high near him he swats at you; jump when his fist glows red.
+You have three hearts. **If he knocks you out, he regains a crystal.**
 
 Fall and you fall to your death, then respawn at the last checkpoint. Best times are saved in your browser.
 
