@@ -467,18 +467,35 @@ export class Builder {
     const col = this.plat({ x, y, z, w, d, style: 'finish', rock: true, rockDepth });
     this.world.finishCol = col;
     this.world.finishPos.set(x, y, z);
-    const arch = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.28, 12, 40, Math.PI), this.M.gold);
-    arch.position.set(x, y, z - 0.5); arch.castShadow = true;
+    // the banner hangs on short chains *inside* the arch so the two never overlap
+    const R = 4.2, az = z - 0.5;
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(R, 0.28, 12, 48, Math.PI), this.M.gold);
+    arch.position.set(x, y, az); arch.castShadow = true;
     this.add(arch);
     const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
     const g = c.getContext('2d');
     g.fillStyle = '#c4161c'; g.fillRect(0, 0, 1024, 256);
-    g.fillStyle = '#fff'; g.font = '900 170px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('FINISH', 512, 136);
-    const bt = new THREE.CanvasTexture(c); bt.colorSpace = THREE.SRGBColorSpace;
-    const banner = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), new THREE.MeshStandardMaterial({ map: bt, side: THREE.DoubleSide, roughness: 0.8, emissive: 0xffffff, emissiveMap: bt, emissiveIntensity: 0.3 }));
-    banner.position.set(x, y + 3.2, z - 0.5);
-    this.add(banner);
+    g.strokeStyle = '#ffd84d'; g.lineWidth = 14; g.strokeRect(10, 10, 1004, 236);
+    g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = 160;
+    g.font = `900 ${size}px system-ui, sans-serif`;
+    const tw = g.measureText('FINISH').width;
+    if (tw > 900) { size = Math.floor(size * 900 / tw); g.font = `900 ${size}px system-ui, sans-serif`; }
+    g.fillText('FINISH', 512, 132);
+    const bt = new THREE.CanvasTexture(c); bt.colorSpace = THREE.SRGBColorSpace; bt.anisotropy = 4;
+    const bw = 4.0, bh = 1.0, by = y + 2.75;
+    const face = new THREE.MeshStandardMaterial({ map: bt, roughness: 0.8, emissive: 0xffffff, emissiveMap: bt, emissiveIntensity: 0.3 });
+    const board = new THREE.Mesh(boxGeo(bw, bh, 0.06, 2), new THREE.MeshStandardMaterial({ color: 0x8a0e12, roughness: 0.8 }));
+    board.position.set(x, by, az); board.castShadow = true; this.add(board);
+    for (const s of [1, -1]) { // a readable face on each side
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), face);
+      f.position.set(x, by, az + s * 0.035); f.rotation.y = s > 0 ? 0 : Math.PI;
+      this.add(f);
+    }
+    for (const sx of [-1.6, 1.6]) {
+      const top = Math.sqrt((R - 0.2) ** 2 - sx * sx);
+      this.add(this.cylinderBetween(new V3(x + sx, by + bh / 2, az), new V3(x + sx, y + top, az), 0.03, this.M.cable));
+    }
     return col;
   }
 }

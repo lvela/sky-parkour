@@ -6,14 +6,18 @@ import { makeTextures } from './textures.js';
 import { World } from './world.js';
 import { Builder } from './builder.js';
 import './obstacles.js';
+import './obstacles2.js';
 import { LEVELS } from './levels/index.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
 import { XRControls } from './xr.js';
 import { Hud, fmtTime } from './hud.js';
 import { SFX } from './audio.js';
+import { Music } from './music.js';
+import { Tools } from './tools.js';
 
 const EYE = 1.62;
+const SLOW = 0.3; // game speed during slow-mo
 const STORE = 'skyparkour.v2';
 
 // ---------- renderer / persistent scene ----------
@@ -49,9 +53,11 @@ const sunDir = new THREE.Vector3(0, 1, 0);
 const tex = makeTextures();
 const sharedTex = new Set(Object.values(tex));
 const sfx = new SFX();
+const music = new Music(sfx);
 const hud = new Hud(camera);
 const input = new Input(renderer.domElement);
 const xr = new XRControls(renderer, rig);
+const tools = new Tools(scene, camera, sfx);
 let world = new World(sfx);
 const player = new Player(world, sfx);
 
@@ -61,10 +67,10 @@ try { progress = { best: {}, done: {}, ...JSON.parse(localStorage.getItem(STORE)
 function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify(progress)); } catch { /* ignore */ } }
 
 // ---------- game state ----------
-let state = 'menu'; // menu | play | dead | won
+let state = 'menu'; // menu | play | dead (respawns next frame) | won
 let paused = false;
 let gameTime = 0, runTime = 0, deaths = 0, cpIndex = 0, hearts = 3;
-let deadT = 0, fadeIn = 0, winT = 0, shake = 0, deathMsg = '';
+let fadeIn = 0, winT = 0, shake = 0, deathMsg = '';
 let viewYaw = 0, pitch = 0, rigYaw = 0;
 const headOff = new THREE.Vector3(), prevHeadOff = new THREE.Vector3();
 let xrFresh = true;
@@ -124,6 +130,8 @@ function loadLevel(i) {
   world.anim.push(fireworks.update);
   world.player = player;
   player.world = world;
+  world.beat = () => music.beatNow();
+  tools.attach(world, player);
   player.gScale = L.gravity ?? 1;
   restartRun(false);
   renderer.compile(scene, camera);
@@ -135,6 +143,8 @@ function respawn() {
   viewYaw = cp.yaw; pitch = 0; rigYaw = cp.yaw;
   xrFresh = true;
   world.resetCrumbles();
+  world.slowmo = 0;
+  for (const k in world.switches) world.switches[k] = false; // floor switches back to their starting state
   hearts = 3;
   if (world.boss) world.boss.reset(deathMsg === 'KNOCKED OUT!');
   deathMsg = '';
@@ -143,6 +153,7 @@ function respawn() {
 
 function restartRun(play = true) {
   cpIndex = 0; deaths = 0; runTime = 0; winT = 0;
+  player.tool = null;
   for (const cp of world.checkpoints) cp.deactivate();
   hud.clearBanner();
   hud.boss(false);
@@ -167,14 +178,14 @@ player.onKnock = () => {
   if (!isBoss() || world.boss.state !== 'fight' || state !== 'play') return;
   hearts--; updateStats();
   if (renderer.xr.isPresenting) { xr.pulse(0, 1, 120); xr.pulse(1, 1, 120); }
-  if (hearts <= 0) die('KNOCKED OUT!', `${world.boss.name} wins this round… try again!`);
+  if (hearts <= 0) die('KNOCKED OUT!');
 };
 
-function die(big, small) {
-  state = 'dead'; deadT = 0; deaths++;
-  deathMsg = big;
-  sfx.death();
-  hud.banner(big, small, '#ff4a3a', 0);
+// No death screen: you're whisked straight back to your checkpoint on the next frame.
+function die(cause) {
+  if (state !== 'play') return;
+  state = 'dead'; deaths++;
+  deathMsg = cause;
   updateStats();
 }
 
@@ -329,16 +340,32 @@ function handleEvents() {
       fireworks.burst(world.boss.c, 14, 40);
       world.finishPos.copy(world.boss.c);
       winT = 3.2;
-    }
+    } else if (e.type === 'tool') {
+      const xrMode = renderer.xr.isPresenting;
+      if (e.tool === 'gun') hud.banner('BLASTER ACQUIRED!', xrMode ? 'Pull the trigger to shoot targets' : 'Click (or F) to shoot targets · E / right-click to grab', '#4dffd2', 3.5);
+      else hud.banner('GRAPPLER ACQUIRED!', xrMode ? 'Point at a glowing grapple point and pull the trigger' : 'Aim at a glowing grapple point and click (or F)', '#ffb02e', 3.5);
+    } else if (e.type === 'slowmo') sfx.slowmo();
+    else if (e.type === 'kill') die(e.msg || 'SPLASH');
+    else if (e.type === 'banner') hud.banner(e.big, e.small || '', e.color || '#ffcf4a', e.dur || 2);
   }
   world.events.length = 0;
 }
 
+let fireReq = -1; // -1 none, 0/1 VR hand, 2 desktop
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 1 / 30);
+  const dtReal = Math.min(clock.getDelta(), 1 / 30);
   const inXR = renderer.xr.isPresenting;
   const playing = (state === 'play' || state === 'won') && !paused;
   const dsk = input.read();
+  // slow-mo: the world (and you) slow down; looking and aiming stay full speed
+  const slow = world.slowmo > 0 && !paused;
+  if (slow && state === 'play') world.slowmo = Math.max(0, world.slowmo - dtReal);
+  const dt = dtReal * (slow ? SLOW : 1);
+  document.body.classList.toggle('slowmo', slow);
+  music.setSlow(slow);
+  input.toolMode = xr.toolMode = !!player.tool;
+  fireReq = -1;
+  if (dsk.music) { const on = music.toggle(); hud.banner(on ? 'MUSIC ON' : 'MUSIC OFF', 'Press M to toggle', '#ffffff', 1.2); }
 
   if (!paused) { gameTime += dt; world.camPos.copy(player.pos); world.update(gameTime, dt); }
   handleEvents();
@@ -346,7 +373,7 @@ renderer.setAnimationLoop(() => {
   if (playing) {
     let inp;
     if (inXR) {
-      const xi = xr.poll(dt);
+      const xi = xr.poll(dtReal);
       rotY(camera.position, rigYaw, headOff); headOff.y = 0;
       if (!xrFresh && !player.hang) player.pos.add(fwdTmp.subVectors(headOff, prevHeadOff));
       xrFresh = false;
@@ -362,6 +389,7 @@ renderer.setAnimationLoop(() => {
         H.rel.subVectors(H.pos, player.pos);
         rotY(h.velLocal, rigYaw, H.vel);
         H.held = h.held && !!h.source; H.pressed = h.pressed;
+        if (h.fire) fireReq = i;
       });
       if (state === 'won' && xi.jump) { nextLevel(); renderer.render(scene, camera); return; }
       inp = { move: xi.move, yaw: headYaw, jump: xi.jump, hands: vrHands };
@@ -372,6 +400,7 @@ renderer.setAnimationLoop(() => {
       deskHand.pos.set(player.pos.x - Math.sin(viewYaw) * 0.4, player.pos.y + 1.6, player.pos.z - Math.cos(viewYaw) * 0.4);
       deskHand.held = dsk.grab; deskHand.pressed = dsk.grabPressed;
       inp = { move: dsk.move, yaw: viewYaw, jump: dsk.jump, hands: [deskHand] };
+      if (dsk.fire) fireReq = 2;
       if (dsk.respawn) { if (state === 'won') replay(); else respawn(); }
     }
 
@@ -395,42 +424,64 @@ renderer.setAnimationLoop(() => {
 
     if (state === 'play' && world.finishCol && player.onGround && player.ground === world.finishCol) win();
     if (state === 'play' && winT > 0) { winT -= dt; if (winT <= 0) win(); }
-    if (state === 'play' && player.pos.y < world.killY) die('YOU FELL TO YOUR DEATH', 'Respawning at checkpoint…');
+    if (state === 'play' && player.pos.y < world.killY) die('FELL');
 
-    if (state === 'play') runTime += dt;
+    if (state === 'play') runTime += dtReal;
     const B = world.boss;
     const bossHint = B && B.state !== 'dead' && B.state !== 'dying' && Math.abs(player.pos.z - B.c.z) < 24 && Math.abs(player.pos.x - B.c.x) < 24 ? B.hint : '';
     hud.set('hint', player.hang
       ? (player.hang.g.kind === 'hold'
         ? (inXR ? 'Pull down to climb · A/X to reach up' : 'SPACE reach up · A/D + SPACE sideways · S + SPACE kick off')
         : (inXR ? 'A / X to launch · let go to drop' : 'SPACE to launch · release E to drop'))
-      : player.grabInRange ? (inXR ? 'Squeeze grip to grab' : 'Hold E / mouse to grab') : bossHint);
+      : player.grabInRange ? (inXR ? 'Squeeze grip to grab' : (player.tool ? 'Hold E / right-click to grab' : 'Hold E / mouse to grab'))
+        : player.grapple ? (inXR ? 'A / X to let go' : 'SPACE to let go')
+          : player.tool && tools.aim ? `${inXR ? 'Pull the trigger' : 'Click'} to ${player.tool === 'gun' ? 'shoot!' : 'grapple!'}` : bossHint);
     sfx.setWind(player.vel.length(), player.sliding);
   } else if (state === 'dead' && !paused) {
-    deadT += dt;
-    if (inXR) xr.poll(dt);
-    if (deadT > 2.0) {
-      respawn(); state = 'play'; fadeIn = 1; hud.clearBanner();
-      if (isBoss()) hud.boss(world.boss.state !== 'dead', world.boss.hp / world.boss.maxHp, world.boss.name);
-      if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; prevHeadOff.copy(headOff); }
-    }
+    if (inXR) xr.poll(dtReal);
+    sfx.respawn();
+    fadeIn = deathMsg === 'KNOCKED OUT!' ? 0.5 : 0.8;
+    respawn(); state = 'play';
+    if (isBoss()) hud.boss(world.boss.state !== 'dead', world.boss.hp / world.boss.maxHp, world.boss.name);
+    if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; prevHeadOff.copy(headOff); }
     sfx.setWind(0, false);
   }
 
   if (inXR) { rotY(camera.position, rigYaw, headOff); headOff.y = 0; }
-  shake = Math.max(0, shake - dt * 1.5);
+  shake = Math.max(0, shake - dtReal * 1.5);
   placeRig(inXR);
+
+  // gadgets: aim with the camera, or with whichever controller pulled the trigger (right hand by default)
+  {
+    let ray = null, hand = -1;
+    if (inXR) {
+      hand = fireReq >= 0 && fireReq < 2 ? fireReq : xr.hands.findIndex((h) => h.handedness === 'right');
+      if (hand < 0) hand = 0;
+      const c = xr.hands[hand].ctrl;
+      tools.setParent(c);
+      ray = { o: c.getWorldPosition(new THREE.Vector3()), d: new THREE.Vector3(0, 0, -1).applyQuaternion(c.getWorldQuaternion(q)) };
+    } else {
+      tools.setParent(null);
+      ray = { o: camera.getWorldPosition(new THREE.Vector3()), d: camera.getWorldDirection(new THREE.Vector3()) };
+    }
+    tools.update(dtReal, { ...ray, fire: playing && state === 'play' && fireReq >= 0, vr: inXR });
+  }
+
+  // music: the boss theme from the moment a boss wakes until he falls
+  const B = world.boss;
+  const bossMusic = B && B.woken && B.state !== 'dead';
+  music.play(bossMusic ? 'boss' : 'run', bossMusic ? B.power : levelIndex + 1, bossMusic ? 0 : L.musicBpm || 0);
+  music.tick();
 
   // fade to black while falling, then back in after respawn
   const fadeY = world.killY + 20;
   let fade = 0;
-  if (state === 'dead') fade = Math.min(1, (deathMsg === 'KNOCKED OUT!' ? 0.5 : 0.85) + deadT);
-  else if (state === 'play') fade = Math.max(0, Math.min(0.85, (fadeY - player.pos.y) / (fadeY - world.killY) * 0.85));
-  if (fadeIn > 0) { fadeIn = Math.max(0, fadeIn - dt * 1.6); fade = Math.max(fade, fadeIn); }
+  if (state === 'play') fade = Math.max(0, Math.min(0.85, (fadeY - player.pos.y) / (fadeY - world.killY) * 0.85));
+  if (fadeIn > 0) { fadeIn = Math.max(0, fadeIn - dtReal * 1.6); fade = Math.max(fade, fadeIn); }
   hud.fade(fade);
 
-  hud.set('time', fmtTime(runTime));
-  hud.update(dt, player.grabInRange && !inXR);
+  hud.set('time', fmtTime(runTime) + (slow ? `   ⏱ SLOW-MO ${world.slowmo.toFixed(1)}` : ''));
+  hud.update(dtReal, (player.grabInRange || !!tools.aim) && !inXR);
 
   sun.target.position.copy(player.pos);
   sun.position.copy(player.pos).addScaledVector(sunDir, 120);
@@ -451,5 +502,5 @@ window.__sky = {
   look(y, p) { viewYaw = y; pitch = p; },
   tp(x, y, z) { player.reset(new THREE.Vector3(x, y, z)); },
   load(i) { selected = i; loadLevel(i); },
-  get state() { return state; },
+  get state() { return state; }, tools, music,
 };

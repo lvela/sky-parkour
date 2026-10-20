@@ -1,4 +1,4 @@
-// LEVEL 38 — FINAL BOSS: The Void Emperor. Cross the edge of the universe and smash eight crystals.
+// LEVEL 38 — BOSS: The Void Emperor. Cross the edge of the universe and smash eight crystals.
 import * as THREE from 'three';
 import { Boss } from '../boss.js';
 import { boxGeo } from '../textures.js';
@@ -83,7 +83,7 @@ const TOWERS = [
 export default {
   id: 'void',
   name: 'The Void Emperor',
-  tagline: 'FINAL BOSS: at the edge of the universe. Eight crystals, every attack, and a vortex that drags you in.',
+  tagline: 'BOSS: at the edge of the universe. Eight crystals, every attack, and a vortex that drags you in.',
   exposure: 1.0,
   sky: {
     mode: 'gradient', light: { elev: 30, az: 20 },
@@ -110,7 +110,7 @@ export default {
     const jets = (z) => { for (const x of [-0.75, 0.75]) b.flameJet({ x, y: 0, z, period: 2.2, on: 0.4, phase: z * 0.08 }); };
     b.plat({ x: 0, y: 0, z: 0, w: 16, d: 16, style: 'island', rock: true, rockDepth: 16 });
     b.checkpoint(0, 0, 4);
-    b.sign(-4.5, 0, -3, 'THE VOID EMPEROR', 'The last boss. Eight crystals. When he inhales, run AWAY from him!', 0, '#ff4dff');
+    b.sign(-4.5, 0, -3, 'THE VOID EMPEROR', 'Eight crystals. When he inhales, run AWAY from him!', 0, '#ff4dff');
 
     // VOID FLAMES
     b.plat({ x: 0, y: 0, z: -25, w: 3, d: 34, style: 'panel' });

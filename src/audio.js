@@ -85,6 +85,16 @@ export class SFX {
   swat() { this.noise(0.4, 'bandpass', 250, 1200, 0.3); }
   warp() { this.tone(200, 1400, 0.35, 'sine', 0.12); this.tone(1400, 300, 0.3, 'triangle', 0.06, 0.15); }
   pop() { this.tone(900, 1800, 0.08, 'sine', 0.1); }
+  respawn() { this.tone(300, 900, 0.25, 'sine', 0.12); this.noise(0.25, 'bandpass', 600, 2400, 0.08); }
+  shoot() { this.tone(1800, 300, 0.16, 'square', 0.07); this.noise(0.1, 'highpass', 3000, 6000, 0.12); }
+  ding() { [1320, 1760, 2640].forEach((f, i) => this.tone(f, f, 0.4, 'triangle', 0.12, i * 0.06)); }
+  hookFire() { this.noise(0.25, 'bandpass', 1200, 3000, 0.18); this.tone(500, 900, 0.12, 'square', 0.04); }
+  hookLatch() { this.tone(900, 700, 0.06, 'square', 0.08); this.noise(0.08, 'highpass', 2500, 4000, 0.2); }
+  pickup() { [660, 880, 1320, 1760].forEach((f, i) => this.tone(f, f, 0.2, 'triangle', 0.12, i * 0.05)); }
+  slowmo() { this.tone(600, 80, 0.9, 'sawtooth', 0.06); this.noise(0.9, 'lowpass', 2000, 200, 0.2); }
+  click() { this.tone(1200, 900, 0.05, 'square', 0.06); }
+  spring() { this.tone(200, 900, 0.22, 'triangle', 0.22); this.tone(400, 1500, 0.15, 'sine', 0.08); }
+  door() { this.tone(160, 90, 0.5, 'sawtooth', 0.06); this.noise(0.5, 'lowpass', 900, 200, 0.2); }
   heal() { [300, 400, 520].forEach((f, i) => this.tone(f, f * 1.5, 0.4, 'sine', 0.12, i * 0.1)); }
   win() {
     const seq = [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36], [784, 0.52], [1047, 0.64]];

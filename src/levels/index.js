@@ -36,6 +36,18 @@ import abyss from './l35_abyss.js';
 import supernova from './l36_supernova.js';
 import rainbow from './l37_rainbow.js';
 import voidEmperor from './l38_void.js';
+import mesa from './l39_mesa.js';
+import skyline from './l40_skyline.js';
+import balloons from './l41_balloons.js';
+import moonbase from './l42_moonbase.js';
+import funfair from './l43_funfair.js';
+import tidal from './l44_tidal.js';
+import rhythm from './l45_rhythm.js';
+import railway from './l46_railway.js';
+import shadow from './l47_shadow.js';
+import sovereign from './l48_sovereign.js';
+import toyfactory from './l49_toyfactory.js';
+import summit from './l50_summit.js';
 
 // Played in this order. Every tenth level from the Sky King on is a boss, each tougher than the last.
 export const LEVELS = [
@@ -43,4 +55,5 @@ export const LEVELS = [
   blossom, mushroom, ruins, reef, clockwork, neon, haunted, candy, windmill, colossus,
   jungle, crystal, pirate, toxic, autumn, pinball, mirror, meteor, bog, titan,
   inferno, heavy, celestial, grid, hurricane, eclipse, abyss, supernova, rainbow, voidEmperor,
+  mesa, skyline, balloons, moonbase, funfair, tidal, rhythm, railway, shadow, sovereign, toyfactory, summit,
 ];

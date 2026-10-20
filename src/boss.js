@@ -4,7 +4,8 @@
 // spinning flails, lightning strikes and arm swats. Knock-outs let them regain a crystal.
 // The Sky King (power 1) uses the default towers below. Later bosses pass their own towers, colours
 // and a higher power, which speeds everything up and unlocks extra attacks:
-//   power 2+: homing wisps · power 3+: meteor showers · power 4: a vortex inhale that drags you in.
+//   power 2+: homing wisps · power 3+: meteor showers · power 4+: a vortex inhale that drags you in.
+// Wisps only hunt you on the arena floor, so climbing a tower is never interrupted by one.
 import * as THREE from 'three';
 import { boxGeo } from './textures.js';
 import { Collider } from './world.js';
@@ -81,7 +82,7 @@ export class Boss {
 
   get phase() { return this.maxHp - this.hp; } // crystals smashed so far
   get frac() { return this.phase / Math.max(1, this.maxHp - 1); } // 0 → 1 over the fight
-  get speed() { return (1 + 1.1 * this.frac) * (1 + 0.15 * (this.power - 1)); }
+  get speed() { return (1 + 0.8 * this.frac) * (1 + 0.1 * (this.power - 1)); }
 
   // ---------------- construction ----------------
   buildArenaPieces(towerDefs) {
@@ -219,7 +220,7 @@ export class Boss {
   }
 
   get hint() {
-    if (this.state === 'dormant') return 'Step into the arena to face the Sky King';
+    if (this.state === 'dormant') return `Step into the arena to face ${this.name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}`;
     const tw = this.towers[this.active];
     if (!tw) return '';
     if (this.anim.pull > 0) return 'He\'s inhaling — run AWAY from him!';
@@ -249,7 +250,7 @@ export class Boss {
   }
 
   wake() {
-    this.state = 'fight'; this.tShock = 2.5; this.tBoulder = 4; this.tWisp = 4; this.tMeteor = 6; this.tPull = 8;
+    this.state = 'fight'; this.woken = true; this.tShock = 2.5; this.tBoulder = 4; this.tWisp = 4; this.tMeteor = 6; this.tPull = 8;
     this.anim.roar = 1.2; this.sfx.roar();
     this.world.events.push({ type: 'bossWake' });
     this.updateFlails();
@@ -301,38 +302,38 @@ export class Boss {
       const onFloor = P.pos.y < y0 + 2.5 && inArena;
       const busy = this.anim.slam > 0 || this.anim.throw > 0 || this.anim.swat > 0 || this.anim.pull > 0;
       this.tShock -= dt * speed;
-      if (this.tShock <= 0 && !busy) { this.anim.slam = 1.0; this.tShock = 6.5; }
+      if (this.tShock <= 0 && !busy) { this.anim.slam = 1.0; this.tShock = 7.5; }
       this.tBoulder -= dt * speed;
-      if (this.tBoulder <= 0 && onFloor && !busy) { this.anim.throw = 0.9; this.tBoulder = 4.5; }
+      if (this.tBoulder <= 0 && onFloor && !busy) { this.anim.throw = 0.9; this.tBoulder = 5.5; }
       // lightning from half way (from the start for power 3+): follows you anywhere, towers included
       if (this.frac >= 0.5 - 0.25 * (pw - 1) && inArena) {
         this.tLightning -= dt * speed;
-        if (this.tLightning <= 0) { this.tLightning = 6; this.spawnStrike(P); }
+        if (this.tLightning <= 0) { this.tLightning = 7.5; this.spawnStrike(P); }
       }
       // arm swat: punishes hanging around high up near him
       this.tSwat -= dt * Math.min(speed, 1.4);
       const near = Math.hypot(dx, dz) < 11 && P.pos.y > y0 + 2.2;
-      if (near && this.tSwat <= 0 && !busy) { this.anim.swat = 0.95; this.tSwat = 3.5; this.sfx.swat(); }
+      if (near && this.tSwat <= 0 && !busy) { this.anim.swat = 0.95; this.tSwat = 4.5; this.sfx.swat(); }
       if (this.waveQueue > 0) { this.waveQueue -= dt; if (this.waveQueue <= 0) this.spawnWave(); }
-      // power 2+: homing wisps
-      if (pw >= 2 && inArena) {
+      // power 2+: homing wisps (only launched while you're down on the floor)
+      if (pw >= 2 && onFloor && !P.hang) {
         this.tWisp -= dt * speed;
-        if (this.tWisp <= 0) { this.tWisp = 9 - pw; this.spawnWisp(); }
+        if (this.tWisp <= 0) { this.tWisp = Math.max(7, 13 - pw); this.spawnWisp(); }
       }
       // power 3+: meteor showers over the whole arena, one aimed at you
       if (pw >= 3 && inArena) {
         this.tMeteor -= dt * speed;
-        if (this.tMeteor <= 0) { this.tMeteor = 10; this.spawnMeteors(P); }
+        if (this.tMeteor <= 0) { this.tMeteor = 12; this.spawnMeteors(P); }
       }
       // power 4: he inhales and drags you toward him
       if (pw >= 4 && inArena) {
         this.tPull -= dt * speed;
-        if (this.tPull <= 0 && !busy) { this.tPull = 12; this.anim.pull = 2.6; this.sfx.roar(); }
+        if (this.tPull <= 0 && !busy) { this.tPull = 13; this.anim.pull = 2.4; this.sfx.roar(); }
       }
       if (this.anim.pull > 0 && !P.hang) {
         const px = c.x - P.pos.x, pz = c.z - P.pos.z, d = Math.hypot(px, pz);
         if (d > 3) {
-          if (P.onGround) { P.pos.x += px / d * 2.2 * dt; P.pos.z += pz / d * 2.2 * dt; } else { P.vel.x += px / d * 6 * dt; P.vel.z += pz / d * 6 * dt; }
+          if (P.onGround) { P.pos.x += px / d * 1.6 * dt; P.pos.z += pz / d * 1.6 * dt; } else { P.vel.x += px / d * 4.5 * dt; P.vel.z += pz / d * 4.5 * dt; }
         }
       }
     }
@@ -352,21 +353,23 @@ export class Boss {
     g.add(new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 8), new THREE.MeshBasicMaterial({ color: this.colors.wisp, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
     g.position.copy(from);
     this.b.g.add(g);
-    this.wisps.push({ g, life: 6 });
+    this.wisps.push({ g, life: 5 });
     this.sfx.zap();
   }
 
   updateWisps(dt, P) {
-    const sp = 3.4 + this.power * 0.5;
+    const sp = 2.4 + this.power * 0.3;
+    // they lose interest once you're up a tower or hanging on, and fizzle out
+    const hunting = P && this.state === 'fight' && !P.hang && P.pos.y < this.y0 + 2.5;
     for (let i = this.wisps.length - 1; i >= 0; i--) {
       const w = this.wisps[i];
-      w.life -= dt;
+      w.life -= dt * (hunting ? 1 : 3);
       let hit = false;
-      if (P && this.state === 'fight') {
+      if (hunting) {
         const d = new V3(P.pos.x, P.pos.y + 1, P.pos.z).sub(w.g.position);
         const l = d.length();
-        if (l < 0.9) { hit = true; P.knock(d.x || 0.5, d.z || 0.5, 9, 7, 'boss'); } else w.g.position.addScaledVector(d, sp * dt / l);
-      }
+        if (l < 0.8) { hit = true; P.knock(d.x || 0.5, d.z || 0.5, 4, 4, 'boss'); } else w.g.position.addScaledVector(d, sp * dt / l);
+      } else w.g.position.y += dt * 1.5;
       const s = 1 + Math.sin(this.time * 12 + i) * 0.15; w.g.scale.setScalar(w.life < 0.5 ? s * w.life * 2 : s);
       if (hit || w.life <= 0) { this.b.g.remove(w.g); this.wisps.splice(i, 1); if (hit) this.sfx.hurt(); }
     }
@@ -376,7 +379,7 @@ export class Boss {
 
   // ---- meteors: reuse boulders, falling straight down from the sky
   spawnMeteors(P) {
-    const n = 3 + this.power;
+    const n = 2 + this.power;
     for (let k = 0; k < n; k++) {
       const to = k === 0
         ? new V3(P.pos.x, P.onGround ? P.pos.y : this.y0, P.pos.z)

@@ -1,7 +1,7 @@
 # Sky Parkour
 
 A 3D sky parkour game that runs in the browser and in VR on Meta Quest (WebXR).
-It's built with Three.js and has no build step or assets: textures, sky, clouds and sounds are all generated in code.
+It's built with Three.js and has no build step or assets: textures, sky, clouds, sounds and music are all generated in code.
 
 ## Levels
 Every tenth world from the Sky King on ends in a boss, and each boss is tougher than the last.
@@ -44,7 +44,19 @@ Each world after level 8 adds a new kind of obstacle and is a little harder than
 35. **Abyssal Trench** (pitch-black deep, light gravity): **jellyfish bouncers** and sweeping eels
 36. **Supernova** (exploding star): **chain-collapse paths** that fall apart behind you
 37. **Rainbow Gauntlet** (aurora night): **spinning wall-jump shafts** and a gauntlet of every obstacle
-38. **FINAL BOSS: The Void Emperor** (the edge of the universe): **eight crystals**
+38. **BOSS: The Void Emperor** (the edge of the universe): **eight crystals**
+39. **Wild West Mesa** (sunset over red mesas): **bullet time**, where a slow-mo pad hands you a **blaster**; bounce on the trampoline and shoot the target hidden behind the gate. Also **seesaws**
+40. **Steel Skyline** (skyscraper site at dawn): the **grappler**, used to pull yourself up sheer walls and swing from floating hooks, plus **telescoping crane bridges**
+41. **Balloon Fiesta** (pastel morning, hot-air balloons): **balloons** you float up on (let go before they pop) and **boost rings**
+42. **Moonbase** (craters under a ringed planet, low gravity): **low-gravity bubbles** and **floating mines**
+43. **Midnight Funfair** (a fair in the night sky): **spinning saucers** and **Ferris wheels**
+44. **Tidal Temple** (sunken temple in a floating basin): a **rising and falling tide**, **floats** that ride it, and **pressure-plate gates** that stay open for a few seconds
+45. **Neon Rhythm** (synthwave sunset): **beat blocks** that swap in time with the music, and **floor switches**
+46. **Sky Railway** (golden hour): **grind rails** with huge leaps off the end, **mine-cart trains** and **saw tracks**
+47. **Shadow Labyrinth** (endless dusk): **phantom platforms** that only appear up close, and **squeeze walls**
+48. **BOSS: The Storm Sovereign** (a thunderhead throne): **nine crystals**, each tower built from a new gadget
+49. **Toy Factory** (giant toy workshop): **spinning drums** and **spring walls** you ping-pong between to climb
+50. **The Summit** (the top of the sky at sunrise): the grand finale. Grapple, balloon, grind, and take one last slow-motion shot
 
 ### The bosses
 You can't hit a boss directly. You smash its crystals with parkour, one tower at a time, and finally the gem in its crown,
@@ -66,8 +78,21 @@ Each later boss has more crystals, attacks faster, and adds new attacks:
 - **The Clockwork Colossus** (6 crystals): flails from the start and **homing wisps** that chase you.
 - **The Crystal Titan** (7 crystals): lightning from the start, extra boulders and **meteor showers** across the whole arena.
 - **The Void Emperor** (8 crystals): up to three flails, triple shockwaves, and a **vortex inhale** that drags you toward him. Run away from him while he inhales!
+- **The Storm Sovereign** (9 crystals): the fastest boss. Every tower needs a gadget or trick from worlds 39–47: grappler, boost ring, Ferris wheel, balloon, switch stairs, phantom steps, a cart track, and a cage you open by shooting a circling target.
 
-Fall and you fall to your death, then respawn at the last checkpoint. Best times are saved in your browser.
+Homing wisps only chase you on the arena floor. Once you're up a tower or hanging on, they fizzle out.
+
+### Gadgets
+Some stations hand you a gadget. It stays with you until you pick up a different one or restart the level.
+- **Blaster:** shoot targets to open gates. It usually comes from a **slow-mo pad**: step on it, and time slows for 8 seconds while you bounce and aim.
+- **Grappler:** aim at a glowing grapple point (up to 18 m away) and fire. You're reeled in and flung up over the ledge, or onward from a floating hook.
+
+A ring locks on when your shot will land. Walls and platforms block shots.
+
+If you fall you're straight back at your last checkpoint, with no death screen. Best times are saved in your browser.
+
+### Music
+Each level gets its own cheerful parkour tune (key, tempo and melody are generated from the level), and a pounding boss theme kicks in when a boss wakes up. Press **M** to turn the music on or off.
 
 ## Controls
 | | Desktop | Meta Quest |
@@ -75,7 +100,9 @@ Fall and you fall to your death, then respawn at the last checkpoint. Best times
 | Move | WASD / arrows | Left stick |
 | Look / turn | Mouse | Head / right stick (snap turn) |
 | Jump, wall jump, launch from a hold | Space | A / X |
-| Grab | Hold E or a mouse button | Grip or trigger (per hand; pull or fling yourself) |
+| Grab | Hold E or a mouse button (E / right-click while holding a gadget) | Grip or trigger (per hand; pull or fling yourself). Grip only while holding a gadget |
+| Fire the blaster / grappler | Left click or F | Trigger (aims where the controller points) |
+| Music on / off | M | |
 | On a climbing hold | Space reach up · A/D + Space sideways · S + Space kick off | Pull down hand over hand · A/X to reach up |
 | Next level (after finishing) | Enter | A |
 | Back to checkpoint / restart after finishing | R | B / Y |
@@ -100,6 +127,7 @@ Open the GitHub Pages URL in the **Meta Quest Browser** and press **ENTER VR**. 
 - `src/scenery.js`: floating islands, the animated cloud sea below and billboard cumulus clouds
 - `src/levels/`: one file per level (sky, lighting, theme and layout)
 - `src/builder.js`: level toolkit (platforms, slides, climbing walls, sweepers, punchers, hammers, swings, zipline, finish)
-- `src/world.js`: colliders and grabbables · `src/boss.js`: the bosses · `src/obstacles.js`: the obstacles added in worlds 9–38 · `src/levels/arena.js`: boss arena helpers · `src/effects.js`: rain, lightning, aurora, birds, fireworks
+- `src/world.js`: colliders and grabbables · `src/boss.js`: the bosses · `src/obstacles.js`: the obstacles added in worlds 9–38 · `src/obstacles2.js`: the obstacles and gadget stations added in worlds 39–50 · `src/levels/arena.js`: boss arena helpers · `src/effects.js`: rain, lightning, aurora, birds, fireworks
 - `src/player.js`: the character controller and physics
-- `src/xr.js`: Quest controllers · `src/input.js`: keyboard and mouse · `src/hud.js`: HUD · `src/audio.js`: synthesized sound
+- `src/tools.js`: the blaster and grappler (models, aiming, shots, rope)
+- `src/xr.js`: Quest controllers · `src/input.js`: keyboard and mouse · `src/hud.js`: HUD · `src/audio.js`: synthesized sound effects · `src/music.js`: the procedural soundtrack

@@ -5,6 +5,7 @@ const V3 = THREE.Vector3;
 const _ab = new V3();
 
 // Yaw-rotated box. Types: solid | wall | wallrun | tramp | crumble | knock | ramp
+// (plus 'spring': side contact flings you back out at knockPower, and up at `bounce`)
 // Ramps: `slope` = rise per metre along local +Z; pos.y is the surface height at the centre.
 // Surface modifiers: `conveyor` {x, z} carries you along; `mud` slows running and jumping.
 export class Collider {
@@ -183,6 +184,10 @@ export class World {
     this.killY = -32;
     this.boss = null; this.player = null;
     this.camPos = new V3();
+    // gadgets: blaster targets and grapple points ({ pos, r, ... }), slow-mo seconds left (real time)
+    this.targets = []; this.hooks = []; this.slowmo = 0;
+    this.switches = {}; // floor-switch channels → on/off
+    this.beat = null; // () => current music beat, or null when silent
   }
   update(t, dt) {
     for (const c of this.colliders) if (c.kinematic) c.step(t, dt);

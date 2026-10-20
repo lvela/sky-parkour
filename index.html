@@ -63,6 +63,8 @@
   #boss .bar { height: 14px; margin-top: 6px; border-radius: 7px; background: rgba(0,0,0,.5); border: 2px solid rgba(255,255,255,.5); overflow: hidden; }
   #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff2a5a, #ff8a3a); transition: width .4s; }
   #fade { position: fixed; inset: 0; background: #000; opacity: 0; z-index: 11; pointer-events: none; }
+  #slowmo { position: fixed; inset: 0; z-index: 9; pointer-events: none; opacity: 0; transition: opacity .25s; background: radial-gradient(ellipse at center, rgba(60,140,255,0) 45%, rgba(40,90,220,.45) 100%); }
+  body.slowmo #slowmo { opacity: 1; }
 </style>
 <script type="importmap">
 {
@@ -79,7 +81,7 @@
 <div id="menu" class="hidden">
   <div class="card">
     <h1>SKY <span>PARKOUR</span></h1>
-    <p class="sub" id="menuSub">Thousands of feet up. 38 worlds. Four bosses.</p>
+    <p class="sub" id="menuSub">Thousands of feet up. 50 worlds. Five bosses.</p>
     <div id="levels"></div>
     <div class="btns">
       <button id="playBtn">PLAY</button>
@@ -95,6 +97,8 @@
           <tr><td><kbd>Space</kbd></td><td>Jump / wall jump / launch off a hold</td></tr>
           <tr><td>Hold <kbd>E</kbd> or mouse</td><td>Grab swings, bars, ziplines &amp; climbing holds</td></tr>
           <tr><td>On a hold</td><td><kbd>Space</kbd> reach up · <kbd>A</kbd>/<kbd>D</kbd>+<kbd>Space</kbd> sideways · <kbd>S</kbd>+<kbd>Space</kbd> kick off</td></tr>
+          <tr><td>Click / <kbd>F</kbd></td><td>Fire the blaster or grappler (once a station gives you one) · grab with <kbd>E</kbd> / right-click while holding it</td></tr>
+          <tr><td><kbd>M</kbd></td><td>Music on / off</td></tr>
           <tr><td><kbd>Enter</kbd></td><td>Next level (after finishing)</td></tr>
           <tr><td><kbd>R</kbd></td><td>Back to checkpoint (restart after finish)</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
@@ -108,6 +112,7 @@
           <tr><td><kbd>A</kbd> / <kbd>X</kbd></td><td>Jump / wall jump / launch</td></tr>
           <tr><td>Grip / trigger</td><td>Grab with that hand. Pull or fling to swing yourself</td></tr>
           <tr><td>Climbing</td><td>Grab holds and pull down hand-over-hand</td></tr>
+          <tr><td>Trigger (with a gadget)</td><td>Fire the blaster / grappler where you point. Grip still grabs</td></tr>
           <tr><td><kbd>B</kbd> / <kbd>Y</kbd></td><td>Back to checkpoint (replay after finish)</td></tr>
           <tr><td><kbd>A</kbd> after finish</td><td>Next level</td></tr>
         </table>
@@ -125,6 +130,7 @@
 <div id="crosshair" class="hidden"></div>
 <div id="hint"></div>
 <div id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+<div id="slowmo"></div>
 <div id="fade"></div>
 
 <script type="module" src="./src/main.js"></script>

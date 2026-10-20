@@ -1,6 +1,7 @@
 // Kinematic character controller: vertical capsule (circle in XZ, segment in Y) against
 // yaw-rotated boxes. Running, jumping, wall jumps, wall slides, slides (ramps), trampolines,
 // knock-back, riding moving platforms, and hanging/climbing on swings, bars, ziplines and holds.
+// Gadgets: `tool` is what a station handed you ('gun' | 'grapple'); `grapple` is an active hook pull.
 import * as THREE from 'three';
 
 export const G = 22;
@@ -25,6 +26,8 @@ export class Player {
     this.gScale = 1;
     this.jumps = 0; // counts every jump (click-clack blocks flip on it)
     this.launchT = 0; // after a launcher (geyser, dash pad…) air control is weak so you fly where it aims
+    this.tool = null; this.grapple = null; this.hop = null;
+    this.zoneG = 1; // gravity multiplier from a low-gravity zone, set every frame by the zone
   }
 
   get sliding() { return this.onGround && this.ground && this.ground.type === 'ramp'; }
@@ -34,7 +37,7 @@ export class Player {
     if (this.hang) this.hang.g.onRelease();
     this.hang = null; this.ground = null; this.onGround = false;
     this.block.clear(); this.jumpBuf = 0; this.wallTime = 0; this.stun = 0; this.invuln = 0;
-    this.wallRun = false; this.jumps = 0; this.launchT = 0;
+    this.wallRun = false; this.jumps = 0; this.launchT = 0; this.grapple = null; this.hop = null;
   }
 
   // Knock-back from obstacles or the boss. dir is horizontal (normalised inside).
@@ -42,6 +45,7 @@ export class Player {
     if (this.invuln > 0) return false;
     const l = Math.hypot(dx, dz) || 1;
     if (this.hang) { this.hang.g.onRelease(); this.block.set(this.hang.g, this.time + 0.8); this.hang = null; }
+    this.grapple = null; this.hop = null;
     this.vel.set(dx / l * power, up, dz / l * power);
     this.onGround = false; this.ground = null; this.coyote = 0;
     this.stun = 0.6; this.invuln = 0.5;
@@ -59,6 +63,30 @@ export class Player {
     this.invuln = Math.max(0, this.invuln - dt);
     if (this.hang) this.updateHang(dt, inp);
     else this.updateMove(dt, inp);
+    this.zoneG = 1;
+  }
+
+  // Grappling hook: reel in toward `anchor` (hands at the anchor), then `launch` on arrival.
+  startGrapple(anchor, launch) {
+    if (this.hang) { this.hang.g.onRelease(); this.hang = null; }
+    this.grapple = { a: anchor.clone(), launch: launch.clone(), t: 0 };
+    this.onGround = false; this.ground = null; this.wallRun = false; this.stun = 0;
+  }
+
+  pullGrapple(dt) {
+    const gr = this.grapple, v = this.vel;
+    gr.t += dt;
+    _p.set(gr.a.x - this.pos.x, gr.a.y - 1.5 - this.pos.y, gr.a.z - this.pos.z);
+    const d = _p.length();
+    if (this.jumpBuf > 0) { // let go early: keep the momentum plus a hop
+      this.jumpBuf = 0; this.grapple = null; v.y = Math.max(v.y, 0) + 5; this.launchT = 0.3; this.sfx.jump(); return;
+    }
+    if (d < 0.7 || gr.t > 3) {
+      if (d < 1.5) { v.copy(gr.launch); this.launchT = 0.5; this.hop = { x: gr.launch.x, z: gr.launch.z, t: 0.7 }; this.sfx.whoosh(); }
+      this.grapple = null; return;
+    }
+    const sp = Math.min(24, 10 + gr.t * 40);
+    v.copy(_p).multiplyScalar(Math.min(sp, d / dt) / d);
   }
 
   findGrab(hands, onlyHand = -1, requireHeld = true) {
@@ -187,7 +215,8 @@ export class Player {
     let wl = Math.hypot(wx, wz);
     if (wl > 1) { wx /= wl; wz /= wl; wl = 1; }
 
-    if (this.sliding) {
+    if (this.grapple) this.pullGrapple(dt);
+    else if (this.sliding) {
       // slide: gravity pulls you down the ramp, you can steer and pump but not stop
       const s = g.slope, dl = -Math.sign(s), k = Math.abs(s) / Math.sqrt(1 + s * s);
       v.x += g.sn * dl * G * this.gScale * k * dt; v.z += g.cs * dl * G * this.gScale * k * dt;
@@ -220,7 +249,7 @@ export class Player {
     this.wallLock = Math.max(0, this.wallLock - dt);
     this.launchT = this.onGround ? 0 : Math.max(0, this.launchT - dt);
     let jumped = false;
-    if (this.jumpBuf > 0 && this.stun <= 0.3) {
+    if (this.jumpBuf > 0 && this.stun <= 0.3 && !this.grapple) {
       if (this.coyote > 0) {
         v.y = (g && g.mud ? JUMP_V * 0.72 : JUMP_V) + (this.sliding ? Math.max(0, v.y) : 0);
         if (g && g.kinematic) { v.x += g.vel.x; v.z += g.vel.z; v.y += Math.max(0, g.vel.y); }
@@ -236,7 +265,8 @@ export class Player {
       }
     }
 
-    v.y -= G * this.gScale * dt;
+    if (!this.grapple) v.y -= G * this.gScale * this.zoneG * dt;
+    if (this.hop) { this.hop.t -= dt; if (this.hop.t <= 0 || this.onGround) this.hop = null; else { v.x = this.hop.x; v.z = this.hop.z; } }
     if (this.wallRun && !jumped) {
       // wall slide: cling to the wall, glide forward and sink slowly
       const n = this.wallN;
@@ -330,7 +360,7 @@ export class Player {
       if (c.spiky) { this.knock(dx || 0.3, dz || 0.3, c.knockPower * 0.5, 10, 'obstacle'); return true; } // spikes / flames hurt from above too
       if (c.type === 'tramp') {
         p.y += 1e-4; // clear the surface so the next pass doesn't shove us off the rim
-        v.y = c.bounce; this.coyote = 0; this.jumpBuf = 0; this.onGround = false; this._ground = null;
+        v.y = c.bounce * Math.sqrt(this.zoneG); this.coyote = 0; this.jumpBuf = 0; this.onGround = false; this._ground = null;
         if (c.push) { v.x = c.push.x; v.z = c.push.z; this.launchT = 1.7 * c.bounce / (G * this.gScale); } // launchers keep their aim
         if (c.onBounce) c.onBounce();
         this.sfx.bounce();
@@ -347,6 +377,15 @@ export class Player {
     }
     const wx = c.cs * nx + c.sn * nz, wz = -c.sn * nx + c.cs * nz;
     p.x += wx * penH; p.z += wz * penH;
+    if (c.type === 'spring' && Math.abs(nx) > 0.5) {
+      // spring walls fling you back out (and up) from their long faces, keeping your speed along the wall
+      const vn = v.x * wx + v.z * wz;
+      v.x += wx * (c.knockPower - vn); v.z += wz * (c.knockPower - vn); v.y = Math.max(v.y, c.bounce || 8);
+      this.launchT = 0.6; this.grapple = null; this.coyote = 0; this.onGround = false; this._ground = null;
+      if (c.onBounce) c.onBounce();
+      this.sfx.spring();
+      return true;
+    }
     if (c.type === 'knock') {
       // obstacles shove you along their motion and away from their face
       const kx = wx + c.vel.x * 0.12, kz = wz + c.vel.z * 0.12;

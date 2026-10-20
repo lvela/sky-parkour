@@ -19,13 +19,14 @@ export class XRControls {
         grip, ctrl, glow, source: null, handedness: '',
         held: false, prevHeld: false, pressed: false,
         prevLocal: new THREE.Vector3(), velLocal: new THREE.Vector3(), tracked: false,
-        aPrev: false, bPrev: false,
+        aPrev: false, bPrev: false, trigPrev: false, fire: false,
       };
       ctrl.addEventListener('connected', (e) => { h.source = e.data; h.handedness = e.data.handedness; h.tracked = false; });
       ctrl.addEventListener('disconnected', () => { h.source = null; h.held = false; });
       this.hands.push(h);
     }
     this.turnReady = true;
+    this.toolMode = false; // holding a gadget: the trigger fires it, the grip still grabs
   }
 
   pulse(handIndex, strength = 0.5, ms = 40) {
@@ -38,7 +39,7 @@ export class XRControls {
     let mx = 0, my = 0, turn = 0, jump = false, respawn = false;
     const tmp = new THREE.Vector3();
     for (const h of this.hands) {
-      h.prevHeld = h.held; h.held = false; h.pressed = false;
+      h.prevHeld = h.held; h.held = false; h.pressed = false; h.fire = false;
       const gp = h.source && h.source.gamepad;
       // hand velocity in rig space (excludes locomotion, so flings feel physical)
       const p = h.grip.position;
@@ -50,7 +51,9 @@ export class XRControls {
       if (!gp) continue;
       const b = gp.buttons;
       const ax = gp.axes.length >= 4 ? [gp.axes[2], gp.axes[3]] : [gp.axes[0] || 0, gp.axes[1] || 0];
-      h.held = !!((b[1] && b[1].pressed) || (b[0] && b[0].pressed));
+      const trig = !!(b[0] && b[0].pressed);
+      h.fire = trig && !h.trigPrev && this.toolMode; h.trigPrev = trig;
+      h.held = !!((b[1] && b[1].pressed) || (trig && !this.toolMode));
       h.pressed = h.held && !h.prevHeld;
       if (h.handedness === 'left') { mx = ax[0]; my = -ax[1]; }
       else if (h.handedness === 'right') {
