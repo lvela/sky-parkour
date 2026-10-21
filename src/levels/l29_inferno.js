@@ -68,6 +68,6 @@ export default {
     b.flameJet({ x: 0, y: 12.7, z: -176, period: 2, on: 0.35 });
     b.plat({ x: 0, y: 13.9, z: -181, w: 3, d: 3, style: 'basalt' });
     b.flameJet({ x: 0, y: 13.9, z: -181, period: 2, on: 0.35, phase: 1 });
-    b.finish(0, 14.5, -191, 12, 12, 16);
+    b.bonusFinish('grindRail', 0, 14.5, -191, 12, 12, 16);
   },
 };

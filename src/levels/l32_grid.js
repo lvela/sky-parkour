@@ -67,6 +67,6 @@ export default {
     b.laser({ x: 0, y: 6.8, z: -136, w: 3, period: 1.8, on: 0.45, phase: -0.6 });
     b.blink({ x: 0, y: 6.8, z: -146, w: 4, d: 4, period: 2.6, on: 0.6 });
     b.blink({ x: 0, y: 6.8, z: -152.5, w: 4, d: 4, period: 2.6, on: 0.6, phase: 1.3 });
-    b.finish(0, 6.8, -162, 12, 12, 16);
+    b.bonusFinish('zapTiles', 0, 6.8, -162, 12, 12, 16);
   },
 };

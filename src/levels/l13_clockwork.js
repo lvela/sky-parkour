@@ -66,7 +66,7 @@ export default {
     b.gear({ x: 0, y: 12, z: -134, r: 2.4, speed: 0.8 });
     b.piston({ x: 0, y: 12, z: -140, amp: 3, period: 3.2, phase: Math.PI });
     b.gear({ x: 0, y: 15, z: -146, r: 2.4, speed: -0.9 });
-    b.finish(0, 15.5, -157, 12, 12, 16);
+    b.bonusFinish('extendBridge', 0, 15.5, -157, 12, 12, 16);
 
     // background clockwork
     for (const [x, y, z, r, s] of [[-28, 4, -60, 9, 0.2], [30, -6, -110, 12, -0.15], [-34, 10, -160, 8, 0.25]]) {

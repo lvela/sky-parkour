@@ -64,6 +64,6 @@ export default {
     // DRIFTERS — short hops between sliding platforms
     b.sign(-3, 8, -133, 'DRIFTERS', 'Short hops between the sliding platforms.', 0, '#4dd2ff');
     [-142, -147, -152].forEach((z, i) => b.plat({ x: 0, y: 8, z, w: 3, d: 3, h: 0.6, style: 'trim', motion: b.mo((v, t) => { v.x = Math.sin(t * 1.2 + i * 2.1) * 2.5; }) }));
-    b.finish(0, 8, -161, 12, 12, 16);
+    b.bonusFinish('squeeze', 0, 8, -161, 12, 12, 16);
   },
 };

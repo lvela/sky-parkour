@@ -71,6 +71,6 @@ export default {
     // FINAL SPINNER
     b.plat({ x: 0, y: 13, z: -205, w: 12, d: 12, style: 'island', rock: true });
     b.sweeper({ x: 0, y: 13, z: -205, r: 5.5, speed: 2.0, arms: 2 });
-    b.finish(0, 13, -220, 12, 12, 14);
+    b.bonusFinish(['zapTiles', 'grapple'], 0, 13, -220, 12, 12, 14);
   },
 };

@@ -64,6 +64,6 @@ export default {
     // RAINBOW ROAD — run with the light to the finish
     b.sign(3, 34, -131.5, 'RAINBOW ROAD', 'Run with the light to the finish!', 0, '#ff4dd2');
     b.pulsePath({ x: 0, y: 34, z0: -137.7, n: 8, speed: 6, period: 3.5, window: 0.38, color: 0xff4dd2 });
-    b.finish(0, 34, -165.9, 12, 12, 16);
+    b.bonusFinish('beatBlocks', 0, 34, -165.9, 12, 12, 16);
   },
 };

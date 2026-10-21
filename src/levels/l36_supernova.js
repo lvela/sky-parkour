@@ -58,6 +58,6 @@ export default {
     b.sign(-3, 3.6, -140.7, 'NOVA', 'The final collapse. Debris everywhere. GO!', 0, '#ff5a2a');
     b.collapse({ x: 0, y: 3.6, z0: -148, n: 10, w: 2.8, d: 2.6, interval: 0.4, lead: 0.7 });
     b.rockfall({ x0: -1.5, x1: 1.5, z0: -147, z1: -176, y: 3.6, period: 0.9, aim: 0.5 });
-    b.finish(0, 3.6, -182.3, 12, 12, 16);
+    b.bonusFinish('extendBridge', 0, 3.6, -182.3, 12, 12, 16);
   },
 };

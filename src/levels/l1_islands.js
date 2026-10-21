@@ -100,7 +100,7 @@ export default {
     });
     b.plat({ x: 0, y: 10, z: -384.5 + Z, w: 6, d: 6, rock: true, rockDepth: 5 });
     b.plat({ x: 0, y: 8, z: -392.5 + Z, w: 3, d: 3, h: 0.6, style: 'mega', type: 'tramp', bounce: 24 });
-    b.finish(0, 18, -404.5 + Z, 12, 12, 18);
+    b.bonusFinish(['seesaw', 'grapple'], 0, 18, -404.5 + Z, 12, 12, 18);
     for (const [tx, tz, s] of [[-4.5, -409, 1.2], [4.6, -408.5, 1.0], [-4.8, -400.5, 0.8], [4.7, -401, 0.9]]) b.tree(tx, 18, tz + Z, s);
   },
 };

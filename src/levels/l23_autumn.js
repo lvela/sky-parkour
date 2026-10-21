@@ -56,7 +56,7 @@ export default {
     // THE BIG OAK — one last swaying beam
     b.sign(-3, 4.5, -161, 'THE BIG OAK', 'One last swaying branch to the finish.', 0, '#ff9a3a');
     b.beam({ x: 0, y: 4.5, z: -173, len: 12, amp: 1.0, period: 2.4 });
-    b.finish(0, 4.5, -185, 12, 12, 16);
+    b.bonusFinish('balloon', 0, 4.5, -185, 12, 12, 16);
     for (const [tx, tz, s] of [[-4.5, -189, 1.4], [4.6, -188, 1.1]]) b.tree(tx, 4.5, tz, s);
   },
 };

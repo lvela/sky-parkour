@@ -52,7 +52,7 @@ export default {
     b.plat({ x: 0, y: 22, z: -157, w: 4, d: 22, style: 'trim' });
     b.windmill({ x: 0, y: 22, z: -152, r: 5, speed: 1.1, blades: 4, side: -1 });
     b.windmill({ x: 0, y: 22, z: -162, r: 5, speed: -1.2, blades: 3, side: 1, phase: 0.5 });
-    b.finish(0, 22, -175, 12, 12, 16);
+    b.bonusFinish('ferris', 0, 22, -175, 12, 12, 16);
     b.tree(-4.5, 22, -179, 1.0); b.tree(4.6, 22, -178, 0.8);
   },
 };

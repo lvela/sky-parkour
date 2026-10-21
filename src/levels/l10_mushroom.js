@@ -66,7 +66,7 @@ export default {
     // MEGA CAP to the finish
     b.sign(-13, 18, -156, 'MEGA CAP', 'Drop onto the giant cap and it\'ll launch you to the finish!', 0, '#c8ff6a');
     b.mushroom({ x: -10, y: 12.3, z: -168, r: 2.2, bounce: 22, color: 0xff3a8a, stem: 14 });
-    b.finish(-10, 20, -183, 12, 12, 16);
+    b.bonusFinish('teacups', -10, 20, -183, 12, 12, 16);
     b.mushroom({ x: -14, y: 21.5, z: -188, r: 1.3, color: caps[1], stem: 1.5 });
     b.mushroom({ x: -5.5, y: 21.2, z: -187, r: 1.0, color: caps[4], stem: 1.2 });
   },

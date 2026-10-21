@@ -71,7 +71,7 @@ export default {
     b.pendulum({ px: 0, py: 21, pz: -150, L: 8, A: 0.55, phase: 0, w: 3, d: 3, axis: 'z' });
     b.pendulum({ px: 0, py: 21, pz: -160, L: 8, A: 0.55, phase: Math.PI, w: 3, d: 3, axis: 'z' });
     this.lantern(b, 0, 21.4, -150); this.lantern(b, 0, 21.4, -160);
-    b.finish(0, 13, -173, 12, 12, 16);
+    b.bonusFinish('squeeze', 0, 13, -173, 12, 12, 16);
     this.graves(b, 0, 13, -173, 5);
   },
 

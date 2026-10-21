@@ -55,6 +55,6 @@ export default {
     b.sign(-3, 0, -166, 'SHOOTING STARS', 'The heaviest rain yet. Sprint!', 0, '#ff6a2a');
     b.plat({ x: 0, y: 0, z: -184, w: 4, d: 24, style: 'top' });
     b.rockfall({ x0: -2, x1: 2, z0: -173, z1: -195, y: 0, period: 0.6, aim: 0.6 });
-    b.finish(0, 0, -202, 12, 12, 16);
+    b.bonusFinish('lowGrav', 0, 0, -202, 12, 12, 16);
   },
 };

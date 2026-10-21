@@ -72,6 +72,6 @@ export default {
     b.sign(3, 13, -174, 'SURFACE', 'One last bubble up to the finish!', 0, '#ffd84d');
     b.bubble({ x: 0, z: -183, y0: 12, y1: 25, speed: 1.6, phase: 0 });
     b.bubble({ x: 0, z: -183, y0: 12, y1: 25, speed: 1.6, phase: 6.5 });
-    b.finish(0, 23, -192, 12, 12, 16);
+    b.bonusFinish('tide', 0, 23, -192, 12, 12, 16);
   },
 };

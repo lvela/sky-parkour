@@ -68,6 +68,6 @@ export default {
     b.plat({ x: 0, y: 15, z: -131, w: 10, d: 10, style: 'trim' });
     b.sweeper({ x: 0, y: 15, z: -131, r: 4.5, speed: 1.8, arms: 2 });
     b.jelly({ x: 0, y: 15.3, z: -137.3, bounce: 15, motion: bob(4), color: 0xff7af0 }).push = { x: 0, z: -9 };
-    b.finish(0, 15, -153, 12, 12, 16);
+    b.bonusFinish('mines', 0, 15, -153, 12, 12, 16);
   },
 };

@@ -61,7 +61,7 @@ export default {
     b.plat({ x: 0, y: 4.5, z: -190, w: 4, d: 4, h: 0.6, style: 'metal', motion: t0((v, t) => { v.z = Math.sin(t * 0.7) * 4; }) });
     b.plat({ x: 0, y: 4.5, z: -204, w: 4, d: 4, h: 0.6, style: 'metal', motion: t0((v, t) => { v.z = Math.sin(t * 0.7 + Math.PI) * 4; }) });
     b.wind({ x0: -2, x1: 2, z0: -183, z1: -212, y0: 4.5, y1: 12, force: 3.5, period: 5 });
-    b.finish(0, 4.5, -218, 12, 12, 14);
+    b.bonusFinish(['drum', 'grapple'], 0, 4.5, -218, 12, 12, 14);
     b.tree(-4.6, 4.5, -222, 1.0); b.tree(4.8, 4.5, -221, 0.8);
   },
 };

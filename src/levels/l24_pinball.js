@@ -54,7 +54,7 @@ export default {
     // PLUNGER — the mega trampoline launches you to the finish
     b.sign(-3, 0, -143, 'PLUNGER', 'Drop onto the plunger and fly to the finish!', 0, '#ffd84d');
     b.plat({ x: 0, y: -2, z: -153.5, w: 3, d: 3, h: 0.6, style: 'mega', type: 'tramp', bounce: 24 });
-    b.finish(0, 8, -165.5, 12, 12, 16);
+    b.bonusFinish('springWall', 0, 8, -165.5, 12, 12, 16);
     b.bumper({ x: -4.5, y: 8, z: -169, color: 0xffd84d }); b.bumper({ x: 4.5, y: 8, z: -169, color: 0x4dffff });
   },
 };

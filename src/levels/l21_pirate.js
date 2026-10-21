@@ -61,7 +61,7 @@ export default {
     b.barrel({ x: 0, y: 17.2, z: -151.5, to: { x: 0, y: 16, z: -167 }, motion: (t) => ({ x: Math.sin(t * 0.9) * 3 }) });
     b.plat({ x: 0, y: 16, z: -168, w: 5, d: 5, style: 'wood', rock: true, rockDepth: 4 });
     b.barrel({ x: 0, y: 17.2, z: -171.5, to: { x: 0, y: 14, z: -190 }, motion: (t) => ({ x: Math.sin(t * 1.3 + 1) * 4 }) });
-    b.finish(0, 14, -193, 12, 12, 16);
+    b.bonusFinish('boostRing', 0, 14, -193, 12, 12, 16);
     this.ship(b, 0, 14, -193, 0, 0);
   },
 

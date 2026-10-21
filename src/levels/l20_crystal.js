@@ -62,7 +62,7 @@ export default {
     b.plat({ x: 0, y: 15, z: -145.5, w: 6, d: 4, h: 12, style: 'trim' });
     b.holds(new V3(0, 3, -143.5), new V3(0, 0, 1), 3, 15, 0.55, 0.45);
     b.shrinkPad({ x: 0, y: 15, z: -151.25, period: 3 });
-    b.finish(0, 15, -160, 12, 8, 16);
+    b.bonusFinish('bulletTime', 0, 15, -160, 12, 8, 16);
     const cm = new THREE.MeshBasicMaterial({ color: 0xc08aff, toneMapped: false });
     for (const [x, z, s] of [[-4.5, -162, 1.4], [4.6, -161, 1.1], [-3.5, -158, 0.8]]) {
       const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.6, 0), cm); c.scale.set(s, s * 2.6, s); c.position.set(x, 15 + s * 1.4, z); b.add(c);

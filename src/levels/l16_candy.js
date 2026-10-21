@@ -55,7 +55,7 @@ export default {
     // SUGAR RUSH — zigzag of swapping blocks
     b.sign(-3, 6.5, -165, 'SUGAR RUSH', 'A zigzag of swapping blocks. Count your jumps!', 0, '#ff6aa8');
     for (let i = 0; i < 8; i++) b.clickClack({ x: i % 2 ? 1.6 : -1.6, y: 6.5 + (i % 2) * 0.6, z: -175 - i * 4.2, w: 2.6, d: 2.6, red: i % 2 === 1 });
-    b.finish(0, 7, -215, 12, 12, 16);
+    b.bonusFinish('switches', 0, 7, -215, 12, 12, 16);
     b.mushroom({ x: -4.5, y: 8, z: -219, r: 1.3, color: 0xff6aa8, stem: 1 });
     b.mushroom({ x: 4.5, y: 7.8, z: -218, r: 1.1, color: 0x4dd2ff, stem: 0.8 });
   },

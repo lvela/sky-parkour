@@ -53,6 +53,6 @@ export default {
     // TRAMPOLINE TO THE FINISH
     b.sign(-3.6, 7, -164.5 + Z, 'STARLAUNCH', 'Jump the sweeper, drop onto the trampoline and float up to the finish.', 0, '#ffd84d');
     b.plat({ x: 0, y: 3, z: -178 + Z, w: 4, d: 4, h: 0.6, style: 'tramp', type: 'tramp', bounce: 14 });
-    b.finish(0, 10, -190 + Z, 12, 12, 16);
+    b.bonusFinish('mines', 0, 10, -190 + Z, 12, 12, 16);
   },
 };

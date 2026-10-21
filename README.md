@@ -6,6 +6,9 @@ It's built with Three.js and has no build step or assets: textures, sky, clouds,
 ## Levels
 Every tenth world from the Sky King on ends in a boss, and each boss is tougher than the last.
 Each world after level 8 adds a new kind of obstacle and is a little harder than the one before.
+Every non-boss course from 1 to 37 also has a **bonus section** before its finish, built from the obstacles of worlds 39–50.
+All 22 of the newer obstacles appear somewhere in the older courses, for example seesaws on Sky Islands, mine carts in Sunset Canyon, a tesla floor in Thunderstorm, a tide pool on the Coral Reef and a grapple cliff in the Jungle Temple.
+Levels 1–6 also get a second section after that, so you meet the gadgets early: a **grapple cliff** on Sky Islands, Thunderstorm and Frozen Peaks, and **slow-mo target shooting** in Sunset Canyon, Aurora Night and Volcano Rift.
 
 1. **Sky Islands** (bright day): stepping stones, crumbling tiles, trampolines, wall jumps, swings, grab bars, moving platforms, zipline
 2. **Sunset Canyon** (golden hour among desert mesas): rock climbing, mega slides with jump ramps, wall slides, moving trampolines
@@ -127,7 +130,7 @@ Open the GitHub Pages URL in the **Meta Quest Browser** and press **ENTER VR**. 
 - `src/scenery.js`: floating islands, the animated cloud sea below and billboard cumulus clouds
 - `src/levels/`: one file per level (sky, lighting, theme and layout)
 - `src/builder.js`: level toolkit (platforms, slides, climbing walls, sweepers, punchers, hammers, swings, zipline, finish)
-- `src/world.js`: colliders and grabbables · `src/boss.js`: the bosses · `src/obstacles.js`: the obstacles added in worlds 9–38 · `src/obstacles2.js`: the obstacles and gadget stations added in worlds 39–50 · `src/levels/arena.js`: boss arena helpers · `src/effects.js`: rain, lightning, aurora, birds, fireworks
+- `src/world.js`: colliders and grabbables · `src/boss.js`: the bosses · `src/obstacles.js`: the obstacles added in worlds 9–38 · `src/obstacles2.js`: the obstacles and gadget stations added in worlds 39–50, plus the bonus sections for the older courses · `src/levels/arena.js`: boss arena helpers · `src/effects.js`: rain, lightning, aurora, birds, fireworks
 - `src/player.js`: the character controller and physics
 - `src/tools.js`: the blaster and grappler (models, aiming, shots, rope)
 - `src/xr.js`: Quest controllers · `src/input.js`: keyboard and mouse · `src/hud.js`: HUD · `src/audio.js`: synthesized sound effects · `src/music.js`: the procedural soundtrack

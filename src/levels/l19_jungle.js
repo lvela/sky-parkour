@@ -61,7 +61,7 @@ export default {
     b.sign(-2.5, 12, -140, 'SACRED CAUSEWAY', 'Faster logs on a narrow path. Almost there!', 0, '#ffd84d');
     b.plat({ x: 0, y: 12, z: -158, w: 3, d: 34, style: 'trim' });
     b.logs({ x: 0, y: 12, z0: -142, z1: -174, w: 3, speed: 7, gap: 2, count: 3, r: 0.5 });
-    b.finish(0, 12, -182, 12, 12, 16);
+    b.bonusFinish('grapple', 0, 12, -182, 12, 12, 16);
     b.tree(-4.5, 12, -186, 1.2); b.tree(4.6, 12, -185, 1.0);
     // temple top
     for (const s of [-1, 1]) b.post(s * 5, 12, 18, -187, true, b.M.stone, 0.6);

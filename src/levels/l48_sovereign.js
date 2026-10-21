@@ -122,7 +122,7 @@ export default {
 
     // TESLA FLOOR
     b.sign(4.5, 0, -3, 'TESLA FLOOR', 'Tiles charge up and ZAP. Run with the wave of sparks.', 0, '#4d9aff');
-    b.zapTiles({ x: 0, y: 0, z0: -9, nx: 2, nz: 8, size: 2.4, period: 2.4, pattern: 'rows' });
+    b.zapTiles({ x: 0, y: 0, z0: -9, nx: 2, nz: 8, size: 2.6, period: 2.4, pattern: 'rows' });
     b.plat({ x: 0, y: 0, z: -34, w: 8, d: 8, style: 'island', rock: true });
     b.checkpoint(0, 0, -34);
 

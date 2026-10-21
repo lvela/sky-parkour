@@ -60,6 +60,6 @@ export default {
     // TOTALITY — the fastest wave
     b.sign(-3, 4, -150, 'TOTALITY', 'The fastest wave of all. Don\'t fall behind!', 0, '#ffd84d');
     b.pulsePath({ x: 0, y: 4, z0: -157.2, n: 12, speed: 6.5, period: 3.5, window: 0.35 });
-    b.finish(0, 4, -197.4, 12, 12, 16);
+    b.bonusFinish('bulletTime', 0, 4, -197.4, 12, 12, 16);
   },
 };

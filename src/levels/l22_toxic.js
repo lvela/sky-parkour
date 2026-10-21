@@ -68,6 +68,6 @@ export default {
     b.plat({ x: 0, y: 20.5, z: -163, w: 8, d: 8, h: 9, style: 'island', rock: true, rockDepth: 6 });
     b.checkpoint(0, 20.5, -163.5);
     b.conveyor({ x: 0, y: 20.5, z: -173, w: 3, d: 8, speed: 5 });
-    b.finish(0, 20.5, -186, 12, 12, 16);
+    b.bonusFinish('sawTrack', 0, 20.5, -186, 12, 12, 16);
   },
 };

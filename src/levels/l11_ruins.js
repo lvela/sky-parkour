@@ -59,7 +59,7 @@ export default {
     b.sign(3, 10, -138, 'DUNE SLIDE', 'Down the slide and off the ramp to the oasis!', 0, '#4dd2ff');
     b.ramp({ z0: -144, y0: 10, z1: -174, y1: 1 });
     b.ramp({ z0: -174, y0: 1, z1: -178, y1: 2.2 });
-    b.finish(0, 1.5, -192, 12, 16, 14);
+    b.bonusFinish('pressureGate', 0, 1.5, -192, 12, 16, 14);
     for (const [tx, tz, s] of [[-4.5, -197, 1.1], [4.6, -196, 0.9], [-4.8, -187, 0.8]]) b.tree(tx, 1.5, tz, s);
   },
 };

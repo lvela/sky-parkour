@@ -50,6 +50,6 @@ export default {
     // CALM CENTRE
     b.sign(-3, 0, -150, 'CALM CENTRE', 'Bounce up into the calm eye of the storm.', 0, '#ffd84d');
     b.plat({ x: 0, y: 0, z: -159.5, w: 3, d: 3, h: 0.6, style: 'tramp', type: 'tramp', bounce: 17 });
-    b.finish(0, 5, -170, 12, 12, 16);
+    b.bonusFinish('grapple', 0, 5, -170, 12, 12, 16);
   },
 };

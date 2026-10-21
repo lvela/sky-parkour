@@ -65,7 +65,7 @@ export default {
     // LAST LEAP
     b.sign(1.5, -2, -168, 'LAST LEAP', 'One more dash to the finish.', 0, '#3dffb0');
     b.dashPad({ x: -2, y: -2, z: -175.5, push: { x: 0, z: -16 }, bounce: 8 });
-    b.finish(-2, -2, -191, 12, 12, 16);
+    b.bonusFinish('beatBlocks', -2, -2, -191, 12, 12, 16);
 
     this.skyline(b);
   },

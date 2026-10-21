@@ -72,6 +72,6 @@ export default {
     // ZIPLINE FINALE
     b.sign(3, 5, -202, 'STARFALL ZIPLINE', 'Grab the handle and ride down to the finish.', 0, '#7af7ff');
     b.zip(new V3(0, 8.8, -203.3), new V3(0, -5.2, -253.5));
-    b.finish(0, -9, -256, 12, 12, 14);
+    b.bonusFinish(['phantom', 'bulletTime'], 0, -9, -256, 12, 12, 14);
   },
 };

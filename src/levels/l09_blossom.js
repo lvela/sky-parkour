@@ -58,7 +58,7 @@ export default {
     b.conveyor({ x: 0, y: 6, z: -177, w: 8, d: 3, speed: 3.5, yaw: Math.PI / 2 });
     b.conveyor({ x: 0, y: 6, z: -187, w: 8, d: 3, speed: 3.5, yaw: -Math.PI / 2 });
     b.conveyor({ x: 0, y: 6, z: -197, w: 3, d: 8, speed: 6 });
-    b.finish(0, 6, -210, 12, 12, 16);
+    b.bonusFinish('balloon', 0, 6, -210, 12, 12, 16);
     for (const [tx, tz, s] of [[-4.5, -214, 1.2], [4.6, -213, 1.0], [-4.8, -206, 0.8]]) b.tree(tx, 6, tz, s);
   },
 };

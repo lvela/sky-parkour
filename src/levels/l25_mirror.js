@@ -61,6 +61,6 @@ export default {
     b.glassBridge({ x: 0, y: 10, z0: -152, rows: 5, gap: 3.2, spread: 1.6, seed: 52 });
     b.plat({ x: 0, y: 10, z: -169, w: 4, d: 4, style: 'trim' });
     b.portal({ a: { x: 0, y: 10, z: -170.5 }, b: { x: 0, y: 20, z: -189 } });
-    b.finish(0, 20, -193, 12, 12, 16);
+    b.bonusFinish('phantom', 0, 20, -193, 12, 12, 16);
   },
 };

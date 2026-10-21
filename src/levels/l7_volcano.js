@@ -71,6 +71,6 @@ export default {
       b.post(s * 6, 0, 12.2, z, false, b.M.basalt, 0.6);
     });
     b.geyser({ x: 0, y: 12, z: -216, w: 4, d: 4, bounce: 18, push: { x: 0, z: -8 } });
-    b.finish(0, 17, -230, 12, 16, 20);
+    b.bonusFinish(['grindRail', 'bulletTime'], 0, 17, -230, 12, 16, 20);
   },
 };

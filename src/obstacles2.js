@@ -490,11 +490,14 @@ Object.assign(Builder.prototype, {
     this.plat({ x, y, z, w: 2.2, d: 2.2, h: 0.3, style: 'metal' });
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.3 }));
     knob.scale.y = 0.4; knob.position.set(x, y, z); this.add(knob);
-    let was = false;
-    world.anim.push(() => {
+    let was = false, cool = 0;
+    world.anim.push((t, dt) => {
       const P = world.player;
       const on = !!P && P.onGround && nearXZ(P, x, z, 1.3) && Math.abs(P.pos.y - y) < 0.4;
-      if (on && !was) { world.switches[channel] = !world.switches[channel]; this.sfx.click(); }
+      cool -= dt;
+      // one flip per visit: stumbling off and straight back on doesn't flip it again
+      if (on && !was && cool <= 0) { world.switches[channel] = !world.switches[channel]; this.sfx.click(); }
+      if (on) cool = 1.5;
       was = on;
       knob.position.y = y - (on ? 0.12 : 0);
       knob.material.emissiveIntensity = world.switches[channel] ? 1.4 : 0.4;
@@ -663,5 +666,155 @@ Object.assign(Builder.prototype, {
       const P = world.player;
       if (P && inside(P)) P.zoneG = scale;
     });
+  },
+});
+
+// =====================================================================================
+// BONUS SECTIONS for the older courses. A course calls b.bonusFinish(kind, …) in place of b.finish(…):
+// the old finish becomes a checkpoint platform (same size, so its decorations still fit), then the new
+// section, then the finish. Every layout is a copy of one tested in worlds 39–50.
+// Each section takes the far edge z0 of that platform and returns where the finish's near edge goes.
+// =====================================================================================
+const SECTIONS = {
+  seesaw(b, x, y, z0) {
+    b.seesaw({ x, y, z: z0 - 6, len: 10 });
+    b.plat({ x, y: y - 1, z: z0 - 15.5, w: 3, d: 3, style: 'trim' });
+    b.seesaw({ x, y: y - 1, z: z0 - 24, len: 10 });
+    return { y: y - 2.5, z: z0 - 32, title: 'SEESAWS', text: 'They tip toward whichever end you stand on.', color: '#ff9a3a' };
+  },
+  bulletTime(b, x, y, z0) {
+    b.bulletTime({ x, y, z: z0 - 4, sway: 1.5 });
+    return { y, z: z0 - 17, title: 'BULLET TIME', text: 'Clock pad = slow-mo + blaster. Bounce and shoot the target over the gate!', color: '#4dffd2' };
+  },
+  grapple(b, x, y, z0, w) {
+    b.toolStation({ x: x + 2.2, y, z: z0 + 1.3, tool: 'grapple' });
+    b.plat({ x, y, z: z0 - 3, w: 6, d: 6, style: 'trim' });
+    b.grappleCliff({ x, y, z: z0 - 6, h: 8, w: 6, d: 8 });
+    const z1 = z0 - 14;
+    b.hook({ x, y: y + 12, z: z1 - 9, launch: { x: 0, y: 6, z: -10 } });
+    return { y: y + 8, z: z1 - 16, title: 'GRAPPLE', text: 'Grab the grappler, pull yourself up the cliff, then swing from the hook.', color: '#ffb02e' };
+  },
+  extendBridge(b, x, y, z0) {
+    b.extendBridge({ x, y, z: z0, len: 12, n: 3, period: 6 });
+    b.plat({ x, y, z: z0 - 15, w: 4, d: 4, style: 'metal' });
+    b.extendBridge({ x, y, z: z0 - 17, len: 15, n: 3, period: 6.5, phase: 2.5 });
+    return { y, z: z0 - 33, title: 'CRANE BRIDGES', text: 'Cross while the bridges are out!', color: '#ffcf3a' };
+  },
+  balloon(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 1.5, w: 3, d: 3, style: 'trim' });
+    b.balloon({ x, z: z0 - 1.5, y0: y + 1.9, y1: y + 10.9, color: 0xff4d6d });
+    return { y: y + 9, z: z0 - 4.5, title: 'BALLOON', text: 'Grab the balloon, float up, launch off before it pops!', color: '#ff7ab0' };
+  },
+  boostRing(b, x, y, z0) {
+    b.boostRing({ x, y: y + 1.5, z: z0 - 3.5, vel: { x: 0, y: 7, z: -15 } });
+    return { y, z: z0 - 10.5, title: 'BOOST RING', text: 'Jump through the ring — it fires you to the finish!', color: '#7dff6a' };
+  },
+  lowGrav(b, x, y, z0) {
+    b.lowGrav({ x, y, z: z0 - 14.5, R: 9, h: 16, scale: 0.35 });
+    b.plat({ x, y, z: z0 - 5.5, w: 3, d: 3, style: 'trim' });
+    b.plat({ x: x + 3, y: y + 4, z: z0 - 12.5, w: 3, d: 3, style: 'trim' });
+    b.plat({ x: x - 2, y: y + 8, z: z0 - 17.5, w: 3, d: 3, style: 'trim' });
+    b.plat({ x, y: y + 12, z: z0 - 22.5, w: 3, d: 3, style: 'trim' });
+    return { y: y + 11, z: z0 - 27.5, title: 'LOW-G BUBBLE', text: 'Gravity almost vanishes inside the bubble. Float up!', color: '#9ad8ff' };
+  },
+  mines(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 14, w: 5, d: 24, style: 'trim' });
+    b.mines({ x0: x - 2.5, x1: x + 2.5, y, z0: z0 - 4, z1: z0 - 24, n: 5, speed: 1.1 });
+    return { y, z: z0 - 28, title: 'MINEFIELD', text: 'Floating mines drift across the path. Time your run!', color: '#ff4a3a' };
+  },
+  ferris(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 1.5, w: 3, d: 3, style: 'trim' });
+    b.ferris({ x, y, z: z0 - 5, R: 7, n: 6, speed: 0.3 });
+    return { y: y + 14, z: z0 - 7.7, title: 'FERRIS WHEEL', text: 'Step into a gondola, ride to the top, jump off forward.', color: '#ff4d8a' };
+  },
+  teacups(b, x, y, z0) {
+    b.teacups({ cx: x, y, cz: z0 - 10, R: 5, n: 3, speed: 0.5, spin: 1.2, size: 3 });
+    return { y, z: z0 - 18.5, title: 'SPINNING SAUCERS', text: 'Hop on a saucer as it swings past and ride it round.', color: '#ffd84d' };
+  },
+  train(b, x, y, z0) {
+    b.train({ path: [[x, y, z0 - 4], [x, y, z0 - 34], [x + 6.5, y, z0 - 34], [x + 6.5, y, z0 - 4]], n: 3, speed: 4 });
+    return { y, z: z0 - 37, title: 'MINE CARTS', text: 'Hop in a cart, ride it across, jump off at the far end.', color: '#ffb02e' };
+  },
+  grindRail(b, x, y, z0) {
+    b.grindRail({ x, y: y + 0.3, z0, z1: z0 - 30, speed: 10 });
+    return { y, z: z0 - 38, title: 'GRIND RAIL', text: 'Ride the rail and JUMP at the very end!', color: '#4dd2ff' };
+  },
+  sawTrack(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 16, w: 4, d: 32, style: 'trim' });
+    [[-6, 1.4, 0], [-13, 1.8, 1], [-20, 1.2, 2], [-27, 2, 0.5]].forEach(([dz, speed, phase]) => b.sawTrack({ x0: x - 1.6, x1: x + 1.6, y, z: z0 + dz, speed, phase }));
+    return { y, z: z0 - 34, title: 'SAW YARD', text: 'Jump the saw blades!', color: '#ff4a3a' };
+  },
+  drum(b, x, y, z0) {
+    for (const dz of [-3, -6.6, -10.2, -13.8]) b.drum({ x, y, z: z0 + dz, len: 4, r: 1.6, speed: 3 });
+    return { y, z: z0 - 17, title: 'ROLLING DRUMS', text: 'The drums roll toward you. Jump from drum to drum!', color: '#ffd23a' };
+  },
+  springWall(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 12, w: 5.4, d: 24, style: 'trim' });
+    for (const s of [-1, 1]) b.springWall({ x: x + s * 3, y, z: z0 - 12.5, w: 0.6, d: 23, h: 9, power: 8, up: 9 });
+    b.plat({ x, y: y + 5, z: z0 - 28, w: 6, d: 8, h: 6, style: 'trim' });
+    for (const s of [-1, 1]) b.plat({ x: x + s * 3.3, y: y + 10, z: z0 - 28, w: 0.6, d: 8, h: 5, style: 'wall' });
+    return { y: y + 5, z: z0 - 32, title: 'SPRING WALLS', text: 'Run into a spring wall and bounce between them up to the ledge!', color: '#ff4a3a' };
+  },
+  squeeze(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 12, w: 4, d: 24, style: 'trim' });
+    [[-5, 3, 0], [-11, 2.6, 1], [-17, 3.2, 2]].forEach(([dz, period, phase]) => b.squeeze({ x, y, z: z0 + dz, period, phase }));
+    return { y, z: z0 - 27, title: 'SQUEEZE', text: 'The walls slam shut. Dash through while they\'re open!', color: '#ff4a3a' };
+  },
+  zapTiles(b, x, y, z0) {
+    b.zapTiles({ x, y, z0: z0 - 1, nx: 2, nz: 8, size: 2.4, period: 2.4, pattern: 'rows' });
+    return { y, z: z0 - 20.4, title: 'TESLA FLOOR', text: 'Tiles charge up and ZAP. Run with the wave of sparks.', color: '#4d9aff' };
+  },
+  switches(b, x, y, z0) {
+    const G = { channel: 'bonus', color: 0x7dff6a }, O = { channel: 'bonus', color: 0xffa040, on: false };
+    b.switchBlock({ x, y, z: z0 - 4, ...G });
+    b.switchPad({ x, y, z: z0 - 8.5, channel: 'bonus', color: 0xffd84d });
+    b.switchBlock({ x, y, z: z0 - 13, ...O });
+    b.switchBlock({ x, y, z: z0 - 17.5, ...O });
+    b.switchBlock({ x: x + 3.5, y, z: z0 - 17.5, ...G });
+    b.switchPad({ x, y, z: z0 - 22, channel: 'bonus', color: 0xffd84d });
+    b.switchBlock({ x, y, z: z0 - 26.5, ...G });
+    b.switchBlock({ x, y, z: z0 - 31, ...G });
+    return { y, z: z0 - 34, title: 'SWITCHES', text: 'Step on a switch to swap the green and orange blocks.', color: '#7dff6a' };
+  },
+  beatBlocks(b, x, y, z0) {
+    for (let i = 0; i < 7; i++) b.beatBlocks({ x, y, z: z0 - 2 - i * 4, group: i % 2, beats: 2 });
+    return { y, z: z0 - 28, title: 'BEAT BLOCKS', text: 'The blocks swap on the beat of the music. Jump when yours flashes!', color: '#ff4dd2' };
+  },
+  phantom(b, x, y, z0) {
+    [[-1.5, 0, -4], [1.5, 0, -9.5], [-1, 0.8, -15], [1.5, 1.6, -20.5], [0, 2.4, -26]].forEach(([dx, dy, dz]) => b.phantom({ x: x + dx, y: y + dy, z: z0 + dz }));
+    return { y: y + 2.4, z: z0 - 30, title: 'PHANTOM PATH', text: 'The platforms appear as you get close. Look for the shimmer!', color: '#b48cff' };
+  },
+  pressureGate(b, x, y, z0) {
+    b.plat({ x, y, z: z0 - 12, w: 4, d: 24, style: 'trim' });
+    b.pressureGate({ plate: { x, y, z: z0 + 2 }, gate: { x, y, z: z0 - 18, w: 4 }, open: 4 });
+    return { y, z: z0 - 26, title: 'TIMED GATE', text: 'Step on the orange plate — the gate drops for 4 seconds. Go!', color: '#ffb02e' };
+  },
+  tide(b, x, y, z0) {
+    const tide = b.tide({ x0: x - 10, x1: x + 10, z0, z1: z0 - 18.9, low: y - 4.4, high: y + 0.1, period: 14 });
+    for (const dz of [-3.5, -9.5, -15.5]) b.float({ x, z: z0 + dz, w: 3.6, d: 3.6, tide });
+    const tub = new THREE.Mesh(boxGeo(21, 2, 20, 2), b.M.stone); tub.position.set(x, y - 7.5, z0 - 9.5); b.add(tub);
+    for (const s of [-1, 1]) { const wall = new THREE.Mesh(boxGeo(1, 7, 20, 2), b.M.stone); wall.position.set(x + s * 10.5, y - 4, z0 - 9.5); b.add(wall); }
+    return { y, z: z0 - 19, title: 'TIDE POOL', text: 'The floats rise with the tide. Wait for high tide to reach the finish.', color: '#4dd2c8' };
+  },
+};
+
+Object.assign(Builder.prototype, {
+  // kind can be a list: the sections are chained, each starting from its own checkpoint platform
+  bonusFinish(kind, x, y, z, w = 12, d = 12, rockDepth = 16) {
+    this.plat({ x, y, z, w, d, style: 'island', rock: true, rockDepth });
+    this.checkpoint(x, y, z);
+    let z0 = z - d / 2, S = null;
+    this.world.bonus = [];
+    [].concat(kind).forEach((k, i) => {
+      if (i) { // a fresh 8 × 8 checkpoint platform where the last section ended
+        this.plat({ x, y: S.y, z: S.z - 4, w: 8, d: 8, style: 'island', rock: true, rockDepth: 10 });
+        this.checkpoint(x, S.y, S.z - 4);
+        y = S.y; z0 = S.z - 8; w = 8;
+      }
+      S = SECTIONS[k](this, x, y, z0, w);
+      this.world.bonus.push({ kind: k, x, y, z0 });
+      this.sign(x - Math.min(4.5, w / 2 - 1), y, z0 + 2.5, S.title, S.text, 0, S.color);
+    });
+    return this.finish(x, S.y, S.z - 6, 12, 12, 16);
   },
 });

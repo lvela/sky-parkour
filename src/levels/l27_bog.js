@@ -70,7 +70,7 @@ export default {
     b.retractBar(0, 3.6, -158.5, 3, { period: 2.6, on: 0.6 });
     b.retractBar(0, 3.6, -163.5, 3, { period: 2.6, on: 0.6, phase: -0.8, motion: b.mo((v, t) => { v.x = Math.sin(t) * 1.5; }) });
     b.retractBar(0, 3.6, -168.5, 3, { period: 2.6, on: 0.6, phase: -1.6 });
-    b.finish(0, 0, -177, 12, 12, 16);
+    b.bonusFinish('tide', 0, 0, -177, 12, 12, 16);
     b.tree(-4.5, 0, -181, 0.9); b.tree(4.6, 0, -180, 0.7);
   },
 };

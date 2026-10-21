@@ -55,6 +55,6 @@ export default {
     b.carousel({ cx: 0, y: 3.6, cz: -139, R: 5, n: 4, speed: 0.7 });
     b.plat({ x: 0, y: 3, z: -149, w: 3, d: 3, style: 'trim', rock: true, rockDepth: 4 });
     b.carousel({ cx: 0, y: 6.6, cz: -157, R: 4.5, n: 3, speed: -0.8 });
-    b.finish(0, 6, -167, 12, 12, 16);
+    b.bonusFinish('ferris', 0, 6, -167, 12, 12, 16);
   },
 };
